@@ -231,3 +231,129 @@ def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=Fals
     locations.append((d.top(), d.right(), d.bottom(), d.left()))
 
   return locations, descriptors
+
+def initialize_face_data(preds_per_person, cls):
+  face_locations = []
+  face_encodings = []
+  for p in preds_per_person[cls]:
+    face_locations.append(p[0][1])
+    face_encodings.append(p[2])
+
+  return face_locations, face_encodings
+
+def delete_element_preds_per_person(preds_per_person, cls, ix):
+  preds_per_person[cls].pop(ix)
+
+  face_locations = []
+  face_encodings = []
+  for p in preds_per_person[cls]:
+    face_locations.append(p[0][1])
+    face_encodings.append(p[2])
+
+  return face_locations, face_encodings
+
+def count_preds_status(preds_per_person):
+  count_ignored = 0
+  count_confirmed = 0
+  for i in preds_per_person:
+    if i[3] == 1:
+      count_confirmed += 1
+    if i[3] == 2:
+      count_ignored += 1
+  count_not_ignored = len(preds_per_person) - count_confirmed - count_ignored
+
+  return count_confirmed, count_ignored, count_not_ignored
+
+# if index is -1: use all elements of predictions, if not, only use one (given by the index)
+def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, index=-1, img_path=None, text=None):
+    if img_path != None:
+        opencvImage = cv2.imread(img_path)
+    else:
+        opencvImage = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+
+    height, width = opencvImage.shape[:2]
+    ws = 600.0 / float(height)
+    opencvImage = cv2.resize(opencvImage, (int(width * ws), int(height * ws)))
+
+    if index != -1:
+        name, (top, right, bottom, left) = predictions[index]
+        top = int(top * ws)
+        right = int(right * ws)
+        bottom = int(bottom * ws)
+        left = int(left * ws)
+        cv2.rectangle(opencvImage, (left, top), (right, bottom), (0, 255, 0), 1)
+        if confirmed >= 1:
+            color = (0, 255, 0)
+        else:
+            color = (255, 0, 0)
+        cv2.putText(opencvImage, name, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
+        if text != None:
+            cv2.putText(opencvImage, text, (20, opencvImage.shape[0]-40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1)
+    else:
+        for name, (top, right, bottom, left) in predictions:
+            top = int(top * ws)
+            right = int(right * ws)
+            bottom = int(bottom * ws)
+            left = int(left * ws)
+            cv2.rectangle(opencvImage, (left, top), (right, bottom), (0, 255, 0), 2)
+            cv2.putText(opencvImage, name, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+            if text != None:
+                cv2.putText(opencvImage, text, (20, opencvImage.shape[0]-40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1)
+
+    cv2.imshow("detections", opencvImage)
+    return cv2.waitKey(0)
+
+
+def guided_input(persons, add_persons=None):
+  options = list(persons.keys())
+  if add_persons != None:
+    for p in add_persons:
+      options.append(p)
+
+  user_input = input("Enter new name: ")
+
+  filtered_names = []
+
+  for i in options:
+    if user_input in i:
+      filtered_names.append(i)
+
+  if len(filtered_names) > 1:
+    # Deal with more that one team.
+    filtered_names.append('abort')
+    print('There is more than one person starting with "{}"'.format(user_input))
+    print('Select the correct person from these choices: ')
+    for index, name in enumerate(filtered_names):
+      print("{}: {}".format(index, name))
+
+    index = input("Enter choice number: ")
+    if not index.isdigit():
+      print('aborted')
+      return ""
+    else:
+      index = int(index)
+
+    if index == len(filtered_names) - 1:
+      new_name = ""
+      print('aborted')
+    else:
+      new_name = filtered_names[index]
+      print('Selected person: {}'.format(new_name))
+  elif len(filtered_names) == 1:
+    # Only one person found
+    new_name = filtered_names[0]
+  elif len(filtered_names) == 0:
+    print('Generate a new person {}?'.format(user_input))
+    print('1 ... yes, 0 ... no')
+    index = input("Enter choice number: ")
+    if not index.isdigit():
+      print('aborted')
+      index = 0
+    else:
+      index = int(index)
+    if index == 1:
+      new_name = user_input
+    else:
+      new_name = ""
+
+  return new_name

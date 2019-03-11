@@ -16,8 +16,8 @@ def train(args):
   train_dir = args.traindir
 
   detector = dlib.get_frontal_face_detector()
-  sp = dlib.shape_predictor("shape_predictor_5_face_landmarks.dat")
-  facerec = dlib.face_recognition_model_v1("dlib_face_recognition_resnet_model_v1.dat")
+  sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
+  facerec = dlib.face_recognition_model_v1("models/dlib_face_recognition_resnet_model_v1.dat")
 
   if len(utils.get_files_in_dir(train_dir, '.csv')) != 0:
     # train using csv files

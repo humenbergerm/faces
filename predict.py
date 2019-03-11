@@ -1,8 +1,8 @@
 import os.path
 import pickle
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import utils
 
@@ -14,7 +14,7 @@ def predict_image(descriptors, locations, knn_clf, distance_threshold=0.3):
     are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(locations))]
 
     predictions = [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in zip(knn_clf.predict(descriptors), locations, are_matches)]
-    print("predicted faces...")
+    #print("predicted faces...")
 
     return predictions
 
@@ -23,11 +23,14 @@ def predict_faces(args, knn_clf):
     print('loading {}'.format(args.detections))
     detections = pickle.load(open(args.detections, "rb"))
 
-    if (len(detections) == 0):
+    if len(detections) == 0:
         print('no detections found')
         exit()
 
-    preds_per_person = utils.load_faces_from_csv(args.db)
+    if args.recompute:
+      preds_per_person = {}
+    else:
+      preds_per_person = utils.load_faces_from_csv(args.db)
 
     for n, image_file in enumerate(detections):
         print("{}/{}".format(n, len(detections)))
@@ -37,9 +40,8 @@ def predict_faces(args, knn_clf):
         full_file_path = image_file
 
         if len(locations) == 0:
-            print('no faces found')
-            continue
-
+          #print('no faces found')
+          continue
 
         # in order to use the exif timestamp, all timestamps and dates etc in the exif data from the images need to be fixed first
         timeStamp = datetime.now()
@@ -56,20 +58,24 @@ def predict_faces(args, knn_clf):
 
         predictions = predict_image(descriptors, locations, knn_clf)
 
-        # Print results on the console
         for id, (name, (top, right, bottom, left)) in enumerate(predictions):
-            print("- Found {} at ({}, {})".format(name, left, top))
-
             if preds_per_person.get(name) == None:
-                preds_per_person[name] = []
+              preds_per_person[name] = []
 
             found = 0
-            for x in preds_per_person[name]:
-                if x[0] == predictions[id] and x[1] == image_file:
+            #found_at = ''
+            if not args.recompute:
+              for y in preds_per_person:
+                for x in preds_per_person[y]:
+                  if x[0][1] == predictions[id][1] and x[1] == image_file:
                     found = 1
+                    #found_at = y
                     break
+                if found == 1:
+                  break
 
             if found == 0:
+                print('Found new face {}.'.format(name))
                 if len(preds_per_person[name]) == 0 or no_timestamp:
                     preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
                 else:
@@ -81,10 +87,10 @@ def predict_faces(args, knn_clf):
                             break
                     if not inserted:
                         preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
-            else:
-                print("face already in database")
+            #else:
+            #    print('face already in database ({})'.format(found_at))
 
-        if n % 100 == 0:
+        if n % 10000 == 0:
             utils.export_persons_to_csv(preds_per_person, args.db)
             print('saved')
 
@@ -113,6 +119,15 @@ if __name__ == "__main__":
     if os.path.isfile(args.knn):
         with open(args.knn, 'rb') as f:
             knn_clf = pickle.load(f)
+    else:
+        print('args.knn ({}) is not a valid file'.format(args.knn))
+        exit()
+
+    if args.recompute:
+      answer = input("You are about to overwrite args.db. Continue? y/n")
+      if answer != 'y':
+        print('Aborted.')
+        exit()
 
     print('Predicting faces in {}'.format(args.detections))
     predict_faces(args, knn_clf)
