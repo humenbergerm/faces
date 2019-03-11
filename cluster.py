@@ -25,7 +25,7 @@ def cluster_faces(args):
             images.append(d)
 
     # cluster the faces
-    labels = dlib.chinese_whispers_clustering(descriptors, 0.45)
+    labels = dlib.chinese_whispers_clustering(descriptors, args.threshold)
     num_classes = len(set(labels))
     print("Number of clusters: {}".format(num_classes))
 
@@ -94,6 +94,8 @@ if __name__ == "__main__":
                              help="Path to detections.bin.")
     parser.add_argument('--outdir', type=str, required=True,
                              help="Path to folder with clustered faces.")
+    parser.add_argument('--threshold', type=float, default=0.45,
+                        help="Threshold for clustering (default=0.45). A larger value decreases the number of resulting clusters.")
     parser.add_argument('--recompute', help='Recompute detections.',
                              action='store_true')
     args = parser.parse_args()

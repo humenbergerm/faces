@@ -16,7 +16,6 @@ def mkdir_p(path):
     else:
       raise
 
-
 def get_images_in_dir_rec(path_to_dir):
   files = []
   for root, dirnames, filenames in os.walk(os.path.normpath(path_to_dir)):
