@@ -8,13 +8,8 @@ from collections import Counter, OrderedDict
 import cv2
 
 def mkdir_p(path):
-  try:
+  if not os.path.isdir(path):
     os.makedirs(path)
-  except OSError as exc:  # Python >2.5
-    if exc.errno == errno.EEXIST and os.path.isdir(path):
-      pass
-    else:
-      raise
 
 def get_images_in_dir_rec(path_to_dir):
   files = []
@@ -96,10 +91,10 @@ def load_faces_from_csv(preds_per_person_path):
   print('Loading the faces from {}.'.format(preds_per_person_path))
 
   if preds_per_person_path == None:
-    print('--db is needed')
+    print('path to db is needed')
     exit()
   if not os.path.isdir(preds_per_person_path):
-    print('--db is not a valid directory')
+    print('path to db is not a valid directory')
     exit()
 
   preds_per_person = {}

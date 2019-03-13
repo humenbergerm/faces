@@ -166,7 +166,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not os.path.isdir(args.db):
-        utils.mkdir_p(args.db)
+        print('args.db is not a valid directory')
 
     if os.path.isfile(args.svm):
         with open(args.svm, 'rb') as f:
