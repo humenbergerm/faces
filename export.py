@@ -46,12 +46,11 @@ if __name__ == "__main__":
     album_dir = export_album(args)
 
     sigal_dir = os.path.join(args.outdir, 'sigal')
-    pSigal = subprocess.Popen(['sigal', 'build', \
-                               '--config', 'sigal.conf.py', \
-                               '--title', 'FACES', \
-                                album_dir, sigal_dir])
-    pSigal.wait()
+    cmd_str = ['sigal ', 'build ', '--config ', 'sigal.conf.py ', '--title ', 'FACES ', album_dir, ' ', sigal_dir]
+    #pSigal = subprocess.Popen(cmd_str)
+    #pSigal.wait()
 
+    print('To generate a Sigal album use: {}'.format(''.join(str(e) for e in cmd_str)))
     print('Show album with: sigal serve -c sigal.conf.py {}'.format(sigal_dir))
 
     print('Done.')
