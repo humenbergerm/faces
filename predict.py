@@ -3,8 +3,60 @@ import pickle
 from PIL import Image
 import argparse
 from datetime import datetime
+import copy
 
 import utils
+
+def predict_class(arg, knn_clf):
+
+  cls = args.detections
+  print('Detecting faces in class {} using knn.'.format(cls))
+  preds_per_person = utils.load_faces_from_csv(args.db)
+
+  face_locations = []
+  face_encodings = []
+  face_path = []
+  for p in preds_per_person[cls]:
+    face_locations.append(p[0][1])
+    face_encodings.append(p[2])
+    face_path.append(p[1])
+
+  print('{} members of {}'.format(len(face_locations), cls))
+  if len(face_locations) == 0:
+    return
+
+  distance_threshold = 0.3
+
+  # Use the KNN model to find the best matches for the test face
+  closest_distances = knn_clf.kneighbors(face_encodings, n_neighbors=3)
+  are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(face_locations))]
+
+  predictions = [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in
+                 zip(knn_clf.predict(face_encodings), face_locations, are_matches)]
+
+  # assumption: predictions has the same length like the class members
+  unknown_counter = 0
+  known_counter = 0
+  pos = 0
+  for name, (top, right, bottom, left) in predictions:
+    if (name == "unknown"):
+      unknown_counter += 1
+      pos += 1
+    else:
+      # move to new class
+      known_counter += 1
+      tmp = preds_per_person[cls][pos]
+      if preds_per_person.get(name) == None:
+        preds_per_person[name] = []
+      preds_per_person[name].append(((name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
+      preds_per_person[cls].pop(pos)
+      print('{} found'.format(name))
+
+  utils.export_persons_to_csv(preds_per_person, args.db)
+
+  print("predicted faces of class {}".format(cls))
+  print("{} new face(s) found. They were moved to their class.".format(known_counter))
+  print("{} face(s) unknown. They are not changed!".format(unknown_counter))
 
 def predict_image(descriptors, locations, knn_clf, distance_threshold=0.3):
 
@@ -32,8 +84,10 @@ def predict_faces(args, knn_clf):
     else:
       preds_per_person = utils.load_faces_from_csv(args.db)
 
+    detections_save = detections.copy()
     for n, image_file in enumerate(detections):
         print("{}/{}".format(n, len(detections)))
+        detections_save.pop(image_file)
 
         locations = detections[image_file][0]
         descriptors = detections[image_file][1]
@@ -96,11 +150,17 @@ def predict_faces(args, knn_clf):
 
     utils.export_persons_to_csv(preds_per_person, args.db)
 
+    if len(detections_save) != 0:
+      with open(args.detections, "wb") as fp:
+        pickle.dump(detections_save, fp)
+    else:
+      print('All detections processed. To make sure you do not do it again, delete {}.'.format(args.detections))
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--detections', type=str, required=True,
-                             help="Path to detections.bin.")
+                             help="Path to detections.bin or name of an already predicted class, such as unknown.")
     parser.add_argument('--knn', type=str, required=True,
                         help="Path to knn model file (e.g. knn.clf).")
     parser.add_argument('--db', type=str, required=True,
@@ -108,10 +168,6 @@ if __name__ == "__main__":
     parser.add_argument('--recompute', help='Recompute detections.',
                              action='store_true')
     args = parser.parse_args()
-
-    if not os.path.isfile(args.detections):
-        print('args.detections needs to be a valid file')
-        exit()
 
     if not os.path.isdir(args.db):
         utils.mkdir_p(args.db)
@@ -124,11 +180,16 @@ if __name__ == "__main__":
         exit()
 
     if args.recompute:
-      answer = input("You are about to overwrite args.db. Continue? y/n")
+      answer = input("You are about to overwrite the content of args.db. Continue? y/n")
       if answer != 'y':
         print('Aborted.')
         exit()
 
-    print('Predicting faces in {}'.format(args.detections))
-    predict_faces(args, knn_clf)
+    if os.path.isfile(args.detections):
+      print('Predicting faces in {}'.format(args.detections))
+      predict_faces(args, knn_clf)
+    else:
+      print('Predicting faces of class {}'.format(args.detections))
+      predict_class(args, knn_clf)
+
     print('Done.')
