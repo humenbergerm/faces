@@ -181,6 +181,61 @@ Note: you do not need to type the entire name. Any number of letters is enough. 
 More information about database manipulation can be found below.
 
 7. Export the predictions, e.g., to a html gallery. 
+```
+python3 export.py --method 0 --outdir output/album --db output/faces
+
+--method: export method: 0 ... as folder with symbolic links to the original files (prepared for sigal)
+--outdir: folder to store the album
+--db: face database from above
+```
+You will see something like this:
+```
+Exporting faces as album.
+Loading the faces from output/faces.
+exporting aaron carter
+exporting adam brody
+exporting adrien brody
+exporting aishwarya rai
+exporting al gore
+exporting bill gates
+exporting liv tyler
+exporting martina hingis
+exporting michelle obama
+exporting steve jobs
+exporting unknown
+To generate a Sigal album use: sigal build --config sigal.conf.py --title FACES output/album/faces output/album/sigal
+Show album with: sigal serve -c sigal.conf.py output/album/sigal
+Done.
+```
+Now, as writen at the end of the last script, run Sigal to generate the album:
+1. If not done already, install [Sigal](http://sigal.saimon.org/en/latest/).
+2. Build gallery:
+```
+sigal build --config sigal.conf.py --title FACES output/album/faces output/album/sigal
+```
+You will see something like this:
+```
+Collecting albums, done.
+Processing files  [####################################]  1715/1715          
+
+Done.
+Processed 1715 images and 0 videos in 8.96 seconds.
+```
+3. Show gallery:
+```
+sigal serve -c sigal.conf.py output/album/sigal
+```
+You will see something like this:
+```
+DESTINATION : output/album/sigal
+ * Running on http://127.0.0.1:8000/
+```
+
+Open http://127.0.0.1:8000 in your browser. It should look like this:
+
+<img src="/data/example_sigal.png" width="600"/>
+
+Now you have one album per person which you can easily browse. Remember, the images are links to the original files. 
 
 ### Manipulate Recognized Faces in your Database 
 
@@ -200,5 +255,5 @@ u: move face to class "unknown"
 - Face descriptor
 - Clustering
 - Matching
-- Photo gallery
+- Photo gallery, Sigal
 - Other open source projects

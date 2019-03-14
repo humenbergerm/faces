@@ -33,7 +33,7 @@ def detect_faces(args):
 
         locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
 
-        detections[f] = (locations, descriptors)
+        detections[os.path.abspath(f)] = (locations, descriptors)
 
         if n % 100 == 0:
             with open(detections_path, "wb") as fp:

@@ -19,7 +19,7 @@ def export_album(args):
     utils.mkdir_p(face_dir)
     for f in preds_per_person[p]:
       symlinkname = os.path.join(face_dir, os.path.basename(f[1]))
-      if not os.path.isfile(symlinkname):
+      if not os.path.islink(symlinkname):
         os.symlink(f[1], symlinkname)
 
   return album_dir
