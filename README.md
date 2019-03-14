@@ -26,9 +26,10 @@ Then extention ...
 1. Detect the faces. This will give us the locations and the description of the faces in your images.
 ```
 python3 detect.py --input data/celebrities --outdir output
-```
+
 --input: path to your image library
 --outdir: will contain the detections (detections.bin)
+```
 You will see something like:
 ```
 Detecting faces in data/celebrities
@@ -44,8 +45,9 @@ Done.
 2. Cluster the detected faces. This will give us a set of folders containing the most similar images. Thus, each folder will correspond to one specific person.
 ```
 python3 cluster.py --detections output/detections.bin --outdir output/cluster --threshold 0.5
-```
+
 --threshold: Sensitivity of clustering (a real value between 0 and 1), the higher the less clusters. Thus, a higher value results in a higher number of different people. 
+```
 You will see something like this:
 ```
 Clustering faces in output/detections.bin
@@ -76,9 +78,10 @@ output/cluster/9_nr_of_images_37    -> martina hingis
 4. Train a svm and a knn model using the folders from step 3.
 ```
 python3 train.py --traindir output/cluster --outdir output/models
-```
+
 --traindir: folder containing the clustered faces
 --outdir: target folder to save the trained face recognition models
+```
 You will see something like this:
 ```
 Training knn and svm model using data in output/cluster.
@@ -96,10 +99,11 @@ Done.
 5. Predict all faces using the trained models.
 ```
 python3 predict.py --detections output/detections.bin --knn output/models/knn.clf --db output/faces
-```
+
 --detections: detections.bin from step 1
 --knn: knn.clf from step 4
 --db: folder to store the face recognition results, thus, your face database
+```
 You will see something like this:
 ```
 Predicting faces in output/detections.bin
@@ -136,9 +140,10 @@ Note that all detections are stores in --db now. Once you processed any detectio
 6. Optional: Since there will be wrong and missing detections you can now manually correct them.
 ```
 python3 show.py --face "all" --svm output/models/svm.clf --db output/faces
-```
+
 --face: person you want to show. e.g.: "liv tyler", "all" shows all persons in your database. Press esc to switch to the next person.
 --db: face database from step 5
+```
 
 <img src="/data/example_show.png" width="300"/>
 
