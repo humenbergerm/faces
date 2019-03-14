@@ -140,6 +140,8 @@ python3 show.py --face "all" --svm output/models/svm.clf --db output/faces
 --face: person you want to show. e.g.: "liv tyler", "all" shows all persons in your database. Press esc to switch to the next person.
 --db: face database from step 5
 
+<img src="/data/example_show.png" width="300"/>
+
 Keyboard commands:
 ```
 esc: save and exit or switch to the next person
