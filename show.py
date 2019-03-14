@@ -60,7 +60,7 @@ def show_class(args, svm_clf):
             str_count = str(ix+1) + ' / ' + str(len(preds_per_person[cls]))
 
             predictions = []
-            predictions.append((name, face_locations[ix]))
+            predictions.append((cls, face_locations[ix]))
             key = utils.show_prediction_labels_on_image(predictions, None, preds_per_person[cls][ix][3], 0, preds_per_person[cls][ix][1], str_count)
             if key == 46: # key '.'
                 ix += 1
