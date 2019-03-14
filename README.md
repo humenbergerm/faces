@@ -135,24 +135,63 @@ exporting steve jobs
 All detections processed. To make sure you do not do it again, delete output/detections.bin.
 Done.
 ```
-Note that all detections are stores in --db now. Once you processed any detections.bin file, you can delete it.
+Note: all detections are stored in --db now. Once you processed any detections.bin file, you can delete it.
 
 6. Optional: Since there will be wrong and missing detections you can now manually correct them.
 ```
-python3 show.py --face "all" --svm output/models/svm.clf --db output/faces
+python3 show.py --face "liv tyler" --svm output/models/svm.clf --db output/faces
 
 --face: person you want to show. e.g.: "liv tyler", "all" shows all persons in your database. Press esc to switch to the next person.
 --db: face database from step 5
 ```
+A window displaying the members of the target class will pop up and you will see something like this:
+```
+Showing detections of class liv tyler
+Loading the faces from output/faces.
+263 members of liv tyler
+0: name: martina hingis, prob: 0.6585406451640466
+1: name: liv tyler, prob: 0.28169683837462617
+2: name: steve jobs, prob: 0.016849424576982804
+3: name: aaron carter, prob: 0.012441532001513409
+4: name: adam brody, prob: 0.007329329746059381
+5: name: aishwarya rai, prob: 0.0064540872019714715
+6: name: bill gates, prob: 0.005053292209619016
+7: name: adrien brody, prob: 0.004709243538535866
+8: name: al gore, prob: 0.003658970585157958
+9: name: michelle obama, prob: 0.003266636601487665
+```
+The script ```show.py``` does not only display the members of the target class, it also uses the svm to compute the probabilities of the current image being a member of each class. We only print the top 10 in the terminal.  
+
+This is the first image you probably get when you open the class "liv tyler" with the command from above:
 
 <img src="/data/example_show.png" width="300"/>
 
+As you know, this is not Liv Tyler but Martina Hingis. This can also be seen in the probabilities (martina hingis has 0.65, liv tyler only 0.28). Thus, this is a wrong recognition. We have three ways of correcting this:
+1. (recommended if possible) Press the number key next to the printed probabilities. This will directly change the current face to this class. In this example press ```0```.
+
+2. Press ```c``` and type the name of the new class. Here, type ```liv tyler```:
+```
+Enter new name: liv tyler
+face changed: liv tyler (263)
+```
+Note: you do not need to type the entire name. Any number of letters is enough. If there are multiple options you will be able to select the correct one.
+
+3. Press ```u``` to directly assign the face to the class ```unknown```. In this way you can assign it later. Or you can hope that it will be assigned automatically when you rerun the prediction using more/better training data.
+
+More information about database manipulation can be found below.
+
+7. Export the predictions, e.g., to a html gallery. 
+
+### Manipulate Recognized Faces in your Database 
+
+#### Using show.py
 Keyboard commands:
 ```
 esc: save and exit or switch to the next person
 u: move face to class "unknown"
 ```
-7. Export the predictions, e.g., to a html gallery. 
+
+#### Using the .csv files
 
 ### Extend your Gallery with new Images
 
