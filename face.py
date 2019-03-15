@@ -1,15 +1,11 @@
-import os.path
-import argparse
-import subprocess
 import sys
 
-import utils
 import detect
 import predict
 import cluster
 import train
-import show
-import export
+# import show
+# import export
 
 if __name__ == "__main__":
 
@@ -24,7 +20,7 @@ if __name__ == "__main__":
     cluster.main()
   elif task == 'train':
     train.main()
-  elif task == 'show':
-    show.main()
-  elif task == 'export':
-    export.main()
+  # elif task == 'show':
+  #   show.main()
+  # elif task == 'export':
+  #   export.main()

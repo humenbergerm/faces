@@ -1,7 +1,6 @@
 import math
 from sklearn import neighbors
 import os
-import os.path
 import pickle
 import argparse
 import dlib
@@ -98,7 +97,7 @@ def main():
   if not os.path.isdir(args.outdir):
     utils.mkdir_p(args.outdir)
 
-  print('Training knn and svm model using data in {}.'.format(args.traindir))
+  print('Training knn and svm model using data from {}.'.format(args.traindir))
   train(args)
   print('Done.')
 

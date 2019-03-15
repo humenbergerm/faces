@@ -3,11 +3,10 @@ import pickle
 from PIL import Image
 import argparse
 from datetime import datetime
-import copy
 
 import utils
 
-def predict_class(arg, knn_clf):
+def predict_class(args, knn_clf):
 
   cls = args.detections
   print('Detecting faces in class {} using knn.'.format(cls))
