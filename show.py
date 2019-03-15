@@ -154,27 +154,29 @@ def show_class(args, svm_clf):
 
         utils.export_persons_to_csv(preds_per_person, args.db)
 
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--face', type=str, required=True,
+                      help="Face to show ('all' shows all faces).")
+  parser.add_argument('--svm', type=str, required=True,
+                      help="Path to svm model file (e.g. svm.clf).")
+  parser.add_argument('--db', type=str, required=True,
+                      help="Path to folder with predicted faces (.csv files).")
+  args = parser.parse_args()
+
+  if not os.path.isdir(args.db):
+      print('args.db is not a valid directory')
+
+  if os.path.isfile(args.svm):
+      with open(args.svm, 'rb') as f:
+          svm_clf = pickle.load(f)
+  else:
+      print('args.svm ({}) is not a valid file'.format(args.svm))
+      exit()
+
+  print('Showing detections of class {}'.format(args.face))
+  show_class(args, svm_clf)
+  print('Done.')
+
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--face', type=str, required=True,
-                             help="Face to show ('all' shows all faces).")
-    parser.add_argument('--svm', type=str, required=True,
-                        help="Path to svm model file (e.g. svm.clf).")
-    parser.add_argument('--db', type=str, required=True,
-                             help="Path to folder with predicted faces (.csv files).")
-    args = parser.parse_args()
-
-    if not os.path.isdir(args.db):
-        print('args.db is not a valid directory')
-
-    if os.path.isfile(args.svm):
-        with open(args.svm, 'rb') as f:
-            svm_clf = pickle.load(f)
-    else:
-        print('args.svm ({}) is not a valid file'.format(args.svm))
-        exit()
-
-    print('Showing detections of class {}'.format(args.face))
-    show_class(args, svm_clf)
-    print('Done.')
+  main()

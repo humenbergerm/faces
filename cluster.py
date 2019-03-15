@@ -87,27 +87,29 @@ def cluster_faces(args):
                 cv2.imwrite(file_name, roi)
                 counter_unclustered += 1
 
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--detections', type=str, required=True,
+                      help="Path to detections.bin.")
+  parser.add_argument('--outdir', type=str, required=True,
+                      help="Path to folder with clustered faces.")
+  parser.add_argument('--threshold', type=float, default=0.45,
+                      help="Threshold for clustering (default=0.45). A larger value decreases the number of resulting clusters.")
+  parser.add_argument('--recompute', help='Recompute detections.',
+                      action='store_true')
+  args = parser.parse_args()
+
+  if not os.path.isfile(args.detections):
+    print('args.detections needs to be a valid file')
+    exit()
+
+  if not os.path.isdir(args.outdir):
+    utils.mkdir_p(args.outdir)
+
+  print('Clustering faces in {}'.format(args.detections))
+  cluster_faces(args)
+  utils.sort_folders_by_nr_of_images(args.outdir)
+  print('Done.')
+
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--detections', type=str, required=True,
-                             help="Path to detections.bin.")
-    parser.add_argument('--outdir', type=str, required=True,
-                             help="Path to folder with clustered faces.")
-    parser.add_argument('--threshold', type=float, default=0.45,
-                        help="Threshold for clustering (default=0.45). A larger value decreases the number of resulting clusters.")
-    parser.add_argument('--recompute', help='Recompute detections.',
-                             action='store_true')
-    args = parser.parse_args()
-
-    if not os.path.isfile(args.detections):
-        print('args.detections needs to be a valid file')
-        exit()
-
-    if not os.path.isdir(args.outdir):
-        utils.mkdir_p(args.outdir)
-
-    print('Clustering faces in {}'.format(args.detections))
-    cluster_faces(args)
-    utils.sort_folders_by_nr_of_images(args.outdir)
-    print('Done.')
+  main()

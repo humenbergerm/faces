@@ -83,22 +83,24 @@ def train(args):
 
   print('Trained models with {} faces'.format(len(X)))
 
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--traindir', type=str, required=True,
+                      help="Path to folder containing subfolders to train faces.")
+  parser.add_argument('--outdir', type=str, required=True,
+                      help="Path to store the trained models.")
+  args = parser.parse_args()
+
+  if not os.path.isdir(args.traindir):
+    print('args.traindir needs to be a valid folder')
+    exit()
+
+  if not os.path.isdir(args.outdir):
+    utils.mkdir_p(args.outdir)
+
+  print('Training knn and svm model using data in {}.'.format(args.traindir))
+  train(args)
+  print('Done.')
+
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--traindir', type=str, required=True,
-                             help="Path to folder containing subfolders to train faces.")
-    parser.add_argument('--outdir', type=str, required=True,
-                             help="Path to store the trained models.")
-    args = parser.parse_args()
-
-    if not os.path.isdir(args.traindir):
-        print('args.traindir needs to be a valid folder')
-        exit()
-
-    if not os.path.isdir(args.outdir):
-        utils.mkdir_p(args.outdir)
-
-    print('Training knn and svm model using data in {}.'.format(args.traindir))
-    train(args)
-    print('Done.')
+  main()

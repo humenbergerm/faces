@@ -156,40 +156,42 @@ def predict_faces(args, knn_clf):
     else:
       print('All detections processed. To make sure you do not do it again, delete {}.'.format(args.detections))
 
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--detections', type=str, required=True,
+                      help="Path to detections.bin or name of an already predicted class, such as unknown.")
+  parser.add_argument('--knn', type=str, required=True,
+                      help="Path to knn model file (e.g. knn.clf).")
+  parser.add_argument('--db', type=str, required=True,
+                      help="Path to folder with predicted faces (.csv files).")
+  parser.add_argument('--recompute', help='Recompute detections.',
+                      action='store_true')
+  args = parser.parse_args()
+
+  if not os.path.isdir(args.db):
+    utils.mkdir_p(args.db)
+
+  if os.path.isfile(args.knn):
+    with open(args.knn, 'rb') as f:
+      knn_clf = pickle.load(f)
+  else:
+    print('args.knn ({}) is not a valid file'.format(args.knn))
+    exit()
+
+  if args.recompute:
+    answer = input("You are about to overwrite the content of args.db. Continue? y/n")
+    if answer != 'y':
+      print('Aborted.')
+      exit()
+
+  if os.path.isfile(args.detections):
+    print('Predicting faces in {}'.format(args.detections))
+    predict_faces(args, knn_clf)
+  else:
+    print('Predicting faces of class {}'.format(args.detections))
+    predict_class(args, knn_clf)
+
+  print('Done.')
+
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--detections', type=str, required=True,
-                             help="Path to detections.bin or name of an already predicted class, such as unknown.")
-    parser.add_argument('--knn', type=str, required=True,
-                        help="Path to knn model file (e.g. knn.clf).")
-    parser.add_argument('--db', type=str, required=True,
-                             help="Path to folder with predicted faces (.csv files).")
-    parser.add_argument('--recompute', help='Recompute detections.',
-                             action='store_true')
-    args = parser.parse_args()
-
-    if not os.path.isdir(args.db):
-        utils.mkdir_p(args.db)
-
-    if os.path.isfile(args.knn):
-        with open(args.knn, 'rb') as f:
-            knn_clf = pickle.load(f)
-    else:
-        print('args.knn ({}) is not a valid file'.format(args.knn))
-        exit()
-
-    if args.recompute:
-      answer = input("You are about to overwrite the content of args.db. Continue? y/n")
-      if answer != 'y':
-        print('Aborted.')
-        exit()
-
-    if os.path.isfile(args.detections):
-      print('Predicting faces in {}'.format(args.detections))
-      predict_faces(args, knn_clf)
-    else:
-      print('Predicting faces of class {}'.format(args.detections))
-      predict_class(args, knn_clf)
-
-    print('Done.')
+  main()

@@ -43,15 +43,14 @@ def detect_faces(args):
     with open(detections_path, "wb") as fp:
         pickle.dump(detections, fp)
 
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str, required=True,
-                             help="Input image directory.")
+                        help="Input image directory.")
     parser.add_argument('--outdir', type=str, required=True,
-                             help="Output directory.")
+                        help="Output directory.")
     parser.add_argument('--recompute', help='Recompute detections.',
-                             action='store_true')
+                        action='store_true')
     args = parser.parse_args()
 
     if not os.path.isdir(args.input):
@@ -64,3 +63,6 @@ if __name__ == "__main__":
     print('Detecting faces in {}'.format(args.input))
     detect_faces(args)
     print('Done.')
+
+if __name__ == "__main__":
+    main()

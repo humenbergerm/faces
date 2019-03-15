@@ -24,13 +24,12 @@ def export_album(args):
 
   return album_dir
 
-if __name__ == "__main__":
-
+def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--method', type=str, required=True,
-                           help="Method of export: 0 ... album")
+                      help="Method of export: 0 ... album")
   parser.add_argument('--db', type=str, required=True,
-                           help="Path to folder with predicted faces (.csv files).")
+                      help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--outdir', type=str, required=True,
                       help="Output directory.")
   args = parser.parse_args()
@@ -47,10 +46,13 @@ if __name__ == "__main__":
 
     sigal_dir = os.path.join(args.outdir, 'sigal')
     cmd_str = ['sigal ', 'build ', '--config ', 'sigal.conf.py ', '--title ', 'FACES ', album_dir, ' ', sigal_dir]
-    #pSigal = subprocess.Popen(cmd_str)
-    #pSigal.wait()
+    # pSigal = subprocess.Popen(cmd_str)
+    # pSigal.wait()
 
     print('To generate a Sigal album use: {}'.format(''.join(str(e) for e in cmd_str)))
     print('Show album with: sigal serve -c sigal.conf.py {}'.format(sigal_dir))
 
     print('Done.')
+
+if __name__ == "__main__":
+  main()
