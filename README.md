@@ -30,13 +30,13 @@ I was looking for a solution to organize my personal photo library and I also wa
 
 ### Inspiration
 
-Obviously, the well working solutions from e.g. Google Photos and the recent advances in face detection and recognition inspired me. After some literture research, I found various sources such as [dlib](https://github.com/davisking/dlib) or [face_recognition](https://github.com/ageitgey/face_recognition). There are many cool open source projects around and I really appreciate all the good work done. 
+Obviously, the well working solutions from e.g. Google Photos and the recent advances in face detection and recognition inspired me. After some literture research, I found various sources such as [dlib](https://github.com/davisking/dlib) or [face_recognition](https://github.com/ageitgey/face_recognition) providing state of the art implementations. The latter provides a nice and clean way for face recognition using the command line but I was looking for a more complete solution from initial training till continous update of my phito database.
 
 Inspired by this and motivated by my own idea of personal face recognition, I started to work on this project.
 
 ### Contribution
 
-If you like this project and you fell motiviated to contribute, let me know. Obviously, there is a lot of room for improvement in multiple aspects!
+If you like this project and you feel motiviated to contribute, let me know. Obviously, there is a lot of room for improvement in multiple aspects!
 
 ### Classes
 In this project a class is refered to as a unique face (or object) which can be trained for recognition. Sometimes I will use the word face and class interchangably. Sorry for that. 
