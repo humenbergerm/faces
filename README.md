@@ -80,9 +80,8 @@ If this is the case, you are all set and you can proceed with the example below.
 ## Example - Celebrities
 In order to provide an easy to follow guide how to use these scripts to organize your personal photo gallery according to the people on the photos, I provide an example [dataset](https://www.microsoft.com/en-us/research/project/msra-cfw-data-set-of-celebrity-faces-on-the-web/) (part of the repositroy) consisting of 10 celebrities. Note that the pictures are already corretly sorted to make it easier for you to assess the recognition results. However, during the entire process we will ignore this. Thus, this example can be directly applied to you unorganized photo gallaery/library. All you need is one folder containing all the images you want to consider. Subfolders are supported.
 
-### Overview
-First initial workflow for training
-Then extention ...
+We will first automatically extract the faces, define our training data, train the recognition models, and predict the faces.
+Second, we will show how to add new images to the database.
 
 ### Initial Workflow
 
