@@ -1,15 +1,81 @@
 # faces
 Face detection and recognition software to organize your personal photo gallery.
 
+DRAFT: work in progress, testing in progress, documentation in progress
+
 ## Introduction
-Not 100% accurate etc... Expetations...
+
+This project builds on modern face detection and recognition algorithms to provide you an easy to use software to organize your personal photo gallery by people without uploading everything to the cloud. 
+
+If you want to try it, I strongly recommend to play with the provided example first before you use it on your own images.
+
+In theory, non of you images will be modified, moved or deleted. I wanted to make sure that the initial folder structure etc. stays untouched. 
+
+However, please be careful and I cannot guarantee for anything :)
+
+Furthermore, it is always a good idea to backup your data, especially the face database (see below), after and during long manual correction or annotations. Obviously, I tried to reduce the manual work to a minimum but if you want to have a clean face database it will be inevitable. 
+
+### Export Options
+TODO
+
+#### HTML Gallery
+See example below.
+
+#### EXIF Tags
+TODO
+
+### Motivation
+
+I was looking for a solution to organize my personal photo library and I also wanted to play with face detection algorithms. Furthermore, I wanted to have something easier to control that the various online solutions around.
+
+### Inspiration
+
+Obviously, the well working solutions from e.g. Google Photos and the recent advances in face detection and recognition inspired me. After some literture research, I found various sources such as [dlib](https://github.com/davisking/dlib) or [face_recognition](https://github.com/ageitgey/face_recognition). There are many cool open source projects around and I really appreciate all the good work done. 
+
+Inspired by this and motivated by my own idea of personal face recognition, I started to work on this project.
+
+### Contribution
+
+If you like this project and you fell motiviated to contribute, let me know. Obviously, there is a lot of room for improvement in multiple aspects!
 
 ### Classes
+In this project a class is refered to as a unique face (or object) which can be trained for recognition. Sometimes I will use the word face and class interchangably. Sorry for that. 
 
 ### Database Organization
 
+TODO
+
 ### Requirements
 - Python 3 (tested with python 3.7 on Mac OS 10.14.3)
+
+### Installation
+
+1. Generate and activate a virtual environement
+```
+pip3 install virtualenv
+virtualenv venv_faces
+source venv_faces/bin/activate
+```
+2. Install dependencies
+```
+pip3 install dlib opencv-python Pillow sklearn
+```
+3. Execute main script
+```
+python3 face.py
+```
+You should see something like this:
+```
+Usage: python3 face.py COMMAND
+
+COMMAND:
+detect 		... detect faces in images
+cluster 	... group similar faces into clusters
+train 		... train face recognition using faces in folders
+show 		... show face recognition results
+export 		... export face recognition results
+```
+If this is the case, you are all set and you can proceed with the example below.
 
 ## Example - Celebrities
 In order to provide an easy to follow guide how to use these scripts to organize your personal photo gallery according to the people on the photos, I provide an example [dataset](https://www.microsoft.com/en-us/research/project/msra-cfw-data-set-of-celebrity-faces-on-the-web/) (part of the repositroy) consisting of 10 celebrities. Note that the pictures are already corretly sorted to make it easier for you to assess the recognition results. However, during the entire process we will ignore this. Thus, this example can be directly applied to you unorganized photo gallaery/library. All you need is one folder containing all the images you want to consider. Subfolders are supported.
@@ -25,7 +91,7 @@ Then extention ...
 
 1. Detect the faces. This will give us the locations and the description of the faces in your images.
 ```
-python3 detect.py --input data/celebrities --outdir output
+python3 face.py detect --input data/celebrities --outdir output
 
 --input: path to your image library
 --outdir: will contain the detections (detections.bin)
@@ -44,7 +110,7 @@ Done.
 ```
 2. Cluster the detected faces. This will give us a set of folders containing the most similar images. Thus, each folder will correspond to one specific person.
 ```
-python3 cluster.py --detections output/detections.bin --outdir output/cluster --threshold 0.5
+python3 face.py cluster --detections output/detections.bin --outdir output/cluster --threshold 0.5
 
 --threshold: Sensitivity of clustering (a real value between 0 and 1), the higher the less clusters. Thus, a higher value results in a higher number of different people. 
 ```
@@ -77,7 +143,7 @@ output/cluster/9_nr_of_images_37    -> martina hingis
 ```
 4. Train a svm and a knn model using the folders from step 3.
 ```
-python3 train.py --traindir output/cluster --outdir output/models
+python3 face.py train --traindir output/cluster --outdir output/models
 
 --traindir: folder containing the clustered faces
 --outdir: target folder to save the trained face recognition models
@@ -98,7 +164,7 @@ Done.
 ```
 5. Predict all faces using the trained models.
 ```
-python3 predict.py --detections output/detections.bin --knn output/models/knn.clf --db output/faces
+python3 face.py predict --detections output/detections.bin --knn output/models/knn.clf --db output/faces
 
 --detections: detections.bin from step 1
 --knn: knn.clf from step 4
@@ -139,7 +205,7 @@ Note: all detections are stored in --db now. Once you processed any detections.b
 
 6. Optional: Since there will be wrong and missing detections you can now manually correct them.
 ```
-python3 show.py --face "liv tyler" --svm output/models/svm.clf --db output/faces
+python3 face.py show --face "liv tyler" --svm output/models/svm.clf --db output/faces
 
 --face: person you want to show. e.g.: "liv tyler", "all" shows all persons in your database. Press esc to switch to the next person.
 --db: face database from step 5
@@ -178,11 +244,13 @@ Note: you do not need to type the entire name. Any number of letters is enough. 
 
 3. Press ```u``` to directly assign the face to the class ```unknown```. In this way you can assign it later. Or you can hope that it will be assigned automatically when you rerun the prediction using more/better training data.
 
+Note: The window needs to be active for the keyboard buttons to work.
+
 More information about database manipulation can be found below.
 
 7. Export the predictions, e.g., to a html gallery. 
 ```
-python3 export.py --method 0 --outdir output/album --db output/faces
+python3 face.py export --method 0 --outdir output/album --db output/faces
 
 --method: export method: 0 ... as folder with symbolic links to the original files (prepared for sigal)
 --outdir: folder to store the album
@@ -239,16 +307,42 @@ Now you have one album per person which you can easily browse. Remember, the ima
 
 ### Manipulate Recognized Faces in your Database 
 
-#### Using show.py
+#### Using ```show```:
+
+The command ```show``` allows you to display and manipulate the face recognition results. The argument ```--face``` defines the class you open (see example above). If you provide 'all', all classes will be displayed one after the other. ```esc``` will jump to the next class. You can: 
+- browse through the detections
+- change the class of a face
+- add a new class
+- delete faces
+
 Keyboard commands:
 ```
+.: next face
+,: previous face
+r: jump to a random face
 esc: save and exit or switch to the next person
+0 .. 9: move face to class written next to the number
 u: move face to class "unknown"
+c ... change class using the keyboard
+s: save faces to args.db
+/: ... set a face to 'confirmed'
+f: ... fast-forward to the next unconfirmed face
+d: ... delete a face (the face will not really be deleted, it will just be moved to the class 'deleted'
+a: ... all faces in the image will be deleted (really deleted); this is useful for anonymous crowds you do not want to label manually)
+b: ... undo last action
 ```
 
 #### Using the .csv files
 
+TODO
+
 ### Extend your Gallery with new Images
+
+TODO
+
+#### Train the Recognition Models with Previous Results
+
+TODO
 
 ### Algorithm References
 - Face detector
@@ -256,4 +350,4 @@ u: move face to class "unknown"
 - Clustering
 - Matching
 - Photo gallery, Sigal
-- Other open source projects
+- face_recognition
