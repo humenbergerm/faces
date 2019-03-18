@@ -314,6 +314,10 @@ The command ```show``` allows you to display and manipulate the face recognition
 - add a new class
 - delete faces
 
+##### Confirmed Images 
+
+TODO
+
 Keyboard commands:
 ```
 .: next face
@@ -344,6 +348,9 @@ TODO
 TODO
 
 ### Algorithm References
+
+TODO 
+
 - Face detector
 - Face descriptor
 - Clustering
