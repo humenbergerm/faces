@@ -87,7 +87,7 @@ Second, we will show how to add new images to the database.
 
 ### Initial Workflow
 
-```data/celecrities``` contains our example dataset
+```data/celebrities``` contains our example dataset
 ```output``` will store the intermediate and final results
 
 1. Detect the faces. This will give us the locations and the description of the faces in your images.
