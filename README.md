@@ -5,6 +5,8 @@ DRAFT: work in progress, testing in progress, documentation in progress
 
 ## Introduction
 
+<img src="/data/overview.jpg" width="800"/>
+
 This project builds on modern face detection and recognition algorithms to provide you an easy to use software to organize your personal photo gallery by people without uploading everything to the cloud. 
 
 If you want to try it, I strongly recommend to play with the provided example first before you use it on your own images.
