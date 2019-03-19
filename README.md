@@ -15,7 +15,7 @@ In theory, non of you images will be modified, moved or deleted. I wanted to mak
 
 However, please be careful and I cannot guarantee for anything :)
 
-Furthermore, it is always a good idea to backup your data, especially the face database (see below), after and during long manual correction or annotations. Obviously, I tried to reduce the manual work to a minimum but if you want to have a clean face database it will be inevitable. 
+Furthermore, it is always a good idea to backup your data and images, especially the face database (see below), after and during long manual corrections or annotations. Obviously, I tried to reduce the manual work to a minimum but if you want to have a clean face database it will be inevitable. 
 
 ### Export Options
 TODO
@@ -24,11 +24,14 @@ TODO
 See example below.
 
 #### EXIF Tags
+
+I will add an option to save the recognized faces to the EXIF data. In this way they can be used to search for particular peoplpe. OneDrive, for example, reads the EXIF tags and let you search for them online. 
+
 TODO
 
 ### Motivation
 
-I was looking for a solution to organize my personal photo library and I also wanted to play with face detection algorithms. Furthermore, I wanted to have something easier to control that the various online solutions around.
+I was looking for a solution to organize my personal photo library and I also wanted to play with face detection algorithms. Furthermore, I wanted to have something easier to control (privacy, keep my own folder structure, do not modify my photos unless I want it to, etc.) than the various online solutions around.
 
 ### Inspiration
 
@@ -39,6 +42,13 @@ Inspired by this and motivated by my own idea of personal face recognition, I st
 ### Contribution
 
 If you like this project and you feel motiviated to contribute, let me know. Obviously, there is a lot of room for improvement in multiple aspects!
+
+- code optimization and cleaning (I certainly did not use the best coding practices and the full potential of python)
+- parallel processing
+- better/real GUI
+- etc. 
+
+I am also looking for an alternative photo gallery which also provides a nice keyword search. I would like to save all recognized faces in a database or directly in the image files and use this information to browse my pictures. The current solution with Sigal is nice but static.
 
 ### Classes
 In this project a class is refered to as a unique face (or object) which can be trained for recognition. Sometimes I will use the word face and class interchangably. Sorry for that. 
