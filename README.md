@@ -55,7 +55,7 @@ In this project a class is refered to as a unique face (or object) which can be 
 
 ### Database Organization
 
-TODO
+All recognitions of a person are stored in a .csv and a .bin file. The .csv files can be edited manually to correct some errors which might have occurred. The detections are stored in detections.bin. This file can be deleted after calling ```predict```, see example.
 
 ### Requirements
 - Python 3 (tested with python 3.7 on Mac OS 10.14.3)
@@ -328,9 +328,9 @@ The command ```show``` allows you to display and manipulate the face recognition
 
 ##### Confirmed Images 
 
-TODO
+While browseing through the recognized faces using ```show```, you can maually confirm a recognition by pressing ```/```. This is useful if you want to verify the detections after prediction. By pressing button ```f```, you can fast-forward to the next face which was not confirmed yet.
 
-Keyboard commands:
+##### Keyboard commands
 ```
 .: next face
 ,: previous face
@@ -349,15 +349,33 @@ b: ... undo last action
 
 #### Using the .csv files
 
-TODO
+The .csv files can be edited manually. You can even merge 2 files, e.g. if you accidentally generated a person twice. If you want to merge 2 files, the according .bin files have to distinguish by exactly one letter, such as 'liv tyler' and 'liv tyler1'. 
 
 ### Extend your Gallery with new Images
 
-TODO
+If you want to extent your database and gallery with new pictures, just call ```detect``` and ```predict``` with the new image folder. The gallery can be updated using ```export```. Rerunning ```sigal build``` should just update the existing gallery. Please double-check this in the Sigal config file. 
 
 #### Train the Recognition Models with Previous Results
 
-TODO
+Training the recognition models using the clustered faces is only necessary to initialize your database. As soon as this is done, you can use the recognition results (unknown faces will be ignored) to train the models.
+
+```
+python3 face.py train --traindir output/faces --outdir output/models_csv
+
+--traindir: folder containing the recognition results, i.e. your faces database
+--outdir: target folder to save the trained face recognition models
+```
+You will see something like this:
+```
+Training knn and svm model using data from output/faces.
+Training using .csv files.
+Loading the faces from output/faces.
+Chose n_neighbors automatically: 40
+Training model with KNN ...
+Training model with an SVM ...
+Trained models with 1609 faces
+Done.
+```
 
 ### Algorithm References
 
