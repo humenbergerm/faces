@@ -43,6 +43,7 @@ Inspired by this and motivated by my own idea of personal face recognition, I st
 
 If you like this project and you feel motivated to contribute, let me know. Obviously, there is a lot of room for improvement in multiple aspects!
 
+- Executables for Windows, Mac OS (there is a problem with PyInstaller + dlib), and Linux
 - code optimization and cleaning (I certainly did not use the best coding practices and the full potential of python)
 - parallel processing
 - better/real GUI
