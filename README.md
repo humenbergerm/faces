@@ -11,7 +11,7 @@ This project builds on modern face detection and recognition algorithms to provi
 
 If you want to try it, I strongly recommend to play with the provided example first before you use it on your own images.
 
-In theory, non of you images will be modified, moved or deleted. I wanted to make sure that the initial folder structure etc. stays untouched. 
+In theory, none of your images will be moved or deleted. I wanted to make sure that the initial folder structure etc. stays untouched. If you use the EXIF data export function you will obviously modify the EXIF data of your images.
 
 However, please be careful and I cannot guarantee for anything :)
 
@@ -25,7 +25,7 @@ See example below.
 
 #### EXIF Tags
 
-I will add an option to save the recognized faces to the EXIF data. In this way they can be used to search for particular peoplpe. OneDrive, for example, reads the EXIF tags and let you search for them online. 
+I will add an option to save the recognized faces to the EXIF data. In this way they can be used to search for particular people. OneDrive, for example, reads the EXIF tags and let you search for them online. 
 
 TODO
 
@@ -35,13 +35,13 @@ I was looking for a solution to organize my personal photo library and I also wa
 
 ### Inspiration
 
-Obviously, the well working solutions from e.g. Google Photos and the recent advances in face detection and recognition inspired me. After some literture research, I found various sources such as [dlib](https://github.com/davisking/dlib) or [face_recognition](https://github.com/ageitgey/face_recognition) providing state of the art implementations. The latter provides a nice and clean way for face recognition using the command line but I was looking for a more complete solution from initial training till continous update of my phito database.
+Obviously, the well working solutions from e.g. Google Photos and the recent advances in face detection and recognition inspired me. After some literature research, I found various sources such as [dlib](https://github.com/davisking/dlib) or [face_recognition](https://github.com/ageitgey/face_recognition) providing state of the art implementations. The latter provides a nice and clean way for face recognition using the command line but I was looking for a more complete solution from initial training till continous update of my photo database.
 
 Inspired by this and motivated by my own idea of personal face recognition, I started to work on this project.
 
 ### Contribution
 
-If you like this project and you feel motiviated to contribute, let me know. Obviously, there is a lot of room for improvement in multiple aspects!
+If you like this project and you feel motivated to contribute, let me know. Obviously, there is a lot of room for improvement in multiple aspects!
 
 - code optimization and cleaning (I certainly did not use the best coding practices and the full potential of python)
 - parallel processing
@@ -51,28 +51,37 @@ If you like this project and you feel motiviated to contribute, let me know. Obv
 I am also looking for an alternative photo gallery which also provides a nice keyword search. I would like to save all recognized faces in a database or directly in the image files and use this information to browse my pictures. The current solution with Sigal is nice but static.
 
 ### Classes
-In this project a class is refered to as a unique face (or object) which can be trained for recognition. Sometimes I will use the word face and class interchangably. Sorry for that. 
+In this project a class is refered to as a unique face (or object) which can be trained for recognition. Sometimes I will use the word face and class interchangeably. Sorry for that. 
 
 ### Database Organization
 
 All recognitions of a person are stored in a .csv and a .bin file. The .csv files can be edited manually to correct some errors which might have occurred. The detections are stored in detections.bin. This file can be deleted after calling ```predict```, see example.
 
-### Requirements
-- Python 3 (tested with python 3.7 on Mac OS 10.14.3)
-
 ### Installation
 
-1. Generate and activate a virtual environement
+#### Requirements
+- Python3 (tested with python 3.7 on Mac OS 10.14.3)
+- [Homebrew](https://brew.sh/)
+
+#### Mac OS (and Linux, but not tested yet)
+
+1. Open a terminal
+
+2. Generate and activate a virtual environement
 ```
 pip3 install virtualenv
 virtualenv venv_faces
 source venv_faces/bin/activate
 ```
-2. Install dependencies
+3. Install dependencies
 ```
 pip3 install dlib opencv-python Pillow sklearn
 ```
-3. Execute main script
+4. Clone repository
+```
+git clone https://github.com/humenbergerm/faces.git
+```
+5. Execute main script
 ```
 python3 face.py
 ```
