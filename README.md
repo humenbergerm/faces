@@ -62,7 +62,7 @@ All recognitions of a person are stored in a .csv and a .bin file. The .csv file
 
 #### Requirements
 - Python3 (tested with python 3.7 on Mac OS 10.14.3)
-- [Homebrew](https://brew.sh/)
+- [Homebrew](https://brew.sh/) (Mac OS only)
 
 #### Mac OS (and Linux, but not tested yet)
 
