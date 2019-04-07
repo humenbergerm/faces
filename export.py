@@ -37,43 +37,69 @@ def export_to_json(args):
 
   for p in preds_per_person:
     print('exporting {}'.format(p))
+
+    #json_dir_face = os.path.join(json_dir, p)
+    #if not os.path.isdir(json_dir_face):
+    #  utils.mkdir_p(json_dir_face)
+
     for f in preds_per_person[p]:
       if not os.path.isfile(f[1]):
         continue
-      json_path = os.path.join(json_dir, f[1].replace('/', '_')[1:-3] + 'json')
-      json_path = json_path.replace(' ', '_')
+      json_path = json_dir + f[1][:-3] + 'json'
       if os.path.isfile(json_path):
         continue
-      else:
-        arg_str = 'exiftool -json "' + f[1] + '" > ' + json_path
-        os.system(arg_str)
+      #json_path = os.path.join(json_dir_face, f[1].replace('/', '_')[1:-3].replace(' ', '_') + 'json')
+      if not os.path.isdir(os.path.dirname(json_path)):
+        utils.mkdir_p(os.path.dirname(json_path))
+
+      arg_str = 'exiftool -json "' + f[1] + '" > "' + json_path + '"'
+      os.system(arg_str)
 
 def save_to_exif(args):
+  json_dir = os.path.join(args.db, 'exif_json')
+
   preds_per_person = utils.load_faces_from_csv(args.db)
   if len(preds_per_person) == 0:
     print('no faces loaded')
     exit()
 
-  # keywords_files = {}
-  #
-  # for p in preds_per_person:
-  #   print('exporting {}'.format(p))
-  #   for f in preds_per_person[p]:
-  #     print(f[1])
-  #     if os.path.isfile(f[1]):
-  #       if keywords_files.get(f[1]) == None:
-  #         keywords_files[f[1]] = ''
-  #       keywords_files[f[1]] += p + ' '
-  #
-  # json_exif = []
-  # for k in keywords_files:
-  #   exif_image = {}
-  #   exif_image['SourceFile'] = k
-  #   exif_image['Keywords'] = keywords_files[k]
-  #   json_exif.append(exif_image)
-  #
-  # with open(os.path.join(args.outdir, 'faces.json'), 'w') as fp:
-  #   json.dump(json_exif, fp)
+  keywords_files = {}
+
+  for p in preds_per_person:
+    if p == 'unknown':
+      continue
+    #print('exporting {}'.format(p))
+    for f in preds_per_person[p]:
+      if os.path.isfile(f[1]):
+        if keywords_files.get(f[1]) == None:
+          keywords_files[f[1]] = []
+        keywords_files[f[1]].append(p)
+
+  for i,k in enumerate(keywords_files):
+    print('writing exif {}/{}'.format(i, len(keywords_files)))
+    json_path = json_dir + k[:-3] + 'json'
+    if not os.path.isfile(json_path):
+      continue
+    with open(json_path) as fp:
+      exif_image = json.load(fp)
+
+    #print(keywords_files[k])
+
+    if exif_image[0].get('SourceFile') == None or exif_image[0].get('SourceFile') == '':
+      exif_image[0]['SourceFile'] = k
+    exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
+    keywords = keywords_files[k]
+    keywords.append(os.path.basename(os.path.dirname(k)))
+    exif_image[0]['Keywords'] = keywords
+    #exif_image[0]['UserComment'] = ''
+
+    with open(json_path, 'w') as fp:
+      json.dump(exif_image, fp)
+
+    arg_str = 'exiftool -json="' + json_path + '" "' + k + '" -overwrite_original'
+    os.system(arg_str)
+
+    #TODO: change to exiftool -keywords+="asdasdfsf" ~/Code/faces/data/celebrities/aaron\ carter/aaron_carter_30.jpg
 
 def main():
   parser = argparse.ArgumentParser()
