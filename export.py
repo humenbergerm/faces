@@ -67,7 +67,7 @@ def save_to_exif(args):
       if os.path.isfile(f[1]):
         if keywords_files.get(f[1]) == None:
           keywords_files[f[1]] = []
-        if p != 'unknown':
+        if p != 'unknown' and p != 'deleted' and p != 'recompute':
           keywords_files[f[1]].append(p)
 
   for i,k in enumerate(keywords_files):
