@@ -62,14 +62,13 @@ def save_to_exif(args):
   keywords_files = {}
 
   for p in preds_per_person:
-    if p == 'unknown':
-      continue
     #print('exporting {}'.format(p))
     for f in preds_per_person[p]:
       if os.path.isfile(f[1]):
         if keywords_files.get(f[1]) == None:
           keywords_files[f[1]] = []
-        keywords_files[f[1]].append(p)
+        if p != 'unknown':
+          keywords_files[f[1]].append(p)
 
   for i,k in enumerate(keywords_files):
     json_path = json_dir + k[:-3] + 'json'
@@ -84,8 +83,12 @@ def save_to_exif(args):
       exif_image[0]['SourceFile'] = k
     exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
     keywords = keywords_files[k]
-    if keywords.sort() != exif_image[0]['Keywords'].sort():
+    if exif_image[0].get('Keywords') == None:
+      exif_image[0]['Keywords'] = []
+    if set(keywords) != set(exif_image[0]['Keywords']):
       print('writing exif {}/{}'.format(i, len(keywords_files)))
+      print(k)
+      print('new keywords: {}'.format(keywords))
       exif_image[0]['Keywords'] = keywords
       #exif_image[0]['UserComment'] = ''
 
@@ -98,7 +101,7 @@ def save_to_exif(args):
       print('no change in exif data found -> skipping')
 
     #TODO: change to exiftool -keywords+="asdasdfsf" ~/Code/faces/data/celebrities/aaron\ carter/aaron_carter_30.jpg
-    #TODO: make sure all changes are stored to exif (change, delete, unknown)
+    #TODO: show changes keyworks on images
 
 def main():
   parser = argparse.ArgumentParser()
