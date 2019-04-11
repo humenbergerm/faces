@@ -52,6 +52,8 @@ def show_class(args, svm_clf):
             elif ix < 0:
                 ix = len(face_locations)-1
 
+            print(preds_per_person[cls][ix][1])
+
             names, probs = predict_face_svm(face_encodings[ix], svm_clf)
             name = names[0]
 

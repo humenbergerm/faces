@@ -38,17 +38,13 @@ def export_to_json(args):
   for p in preds_per_person:
     print('exporting {}'.format(p))
 
-    #json_dir_face = os.path.join(json_dir, p)
-    #if not os.path.isdir(json_dir_face):
-    #  utils.mkdir_p(json_dir_face)
-
     for f in preds_per_person[p]:
       if not os.path.isfile(f[1]):
         continue
       json_path = json_dir + f[1][:-3] + 'json'
       if os.path.isfile(json_path):
         continue
-      #json_path = os.path.join(json_dir_face, f[1].replace('/', '_')[1:-3].replace(' ', '_') + 'json')
+      #####json_path = os.path.join(json_dir_face, f[1].replace('/', '_')[1:-3].replace(' ', '_') + 'json')
       if not os.path.isdir(os.path.dirname(json_path)):
         utils.mkdir_p(os.path.dirname(json_path))
 
@@ -76,7 +72,6 @@ def save_to_exif(args):
         keywords_files[f[1]].append(p)
 
   for i,k in enumerate(keywords_files):
-    print('writing exif {}/{}'.format(i, len(keywords_files)))
     json_path = json_dir + k[:-3] + 'json'
     if not os.path.isfile(json_path):
       continue
@@ -89,17 +84,21 @@ def save_to_exif(args):
       exif_image[0]['SourceFile'] = k
     exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
     keywords = keywords_files[k]
-    keywords.append(os.path.basename(os.path.dirname(k)))
-    exif_image[0]['Keywords'] = keywords
-    #exif_image[0]['UserComment'] = ''
+    if keywords.sort() != exif_image[0]['Keywords'].sort():
+      print('writing exif {}/{}'.format(i, len(keywords_files)))
+      exif_image[0]['Keywords'] = keywords
+      #exif_image[0]['UserComment'] = ''
 
-    with open(json_path, 'w') as fp:
-      json.dump(exif_image, fp)
+      with open(json_path, 'w') as fp:
+        json.dump(exif_image, fp)
 
-    arg_str = 'exiftool -json="' + json_path + '" "' + k + '" -overwrite_original'
-    os.system(arg_str)
+      arg_str = 'exiftool -json="' + json_path + '" "' + k + '" -overwrite_original'
+      os.system(arg_str)
+    else:
+      print('no change in exif data found -> skipping')
 
     #TODO: change to exiftool -keywords+="asdasdfsf" ~/Code/faces/data/celebrities/aaron\ carter/aaron_carter_30.jpg
+    #TODO: make sure all changes are stored to exif (change, delete, unknown)
 
 def main():
   parser = argparse.ArgumentParser()
@@ -130,7 +129,7 @@ def main():
     print('Show album with: sigal serve -c sigal.conf.py {}'.format(sigal_dir))
   elif args.method == '1':
     print('Exporting all exif from the images.')
-    export_to_json(args)
+    #export_to_json(args)
     print('Saving all faces to the images exif data.')
     save_to_exif(args)
     print('Done.')
