@@ -18,16 +18,19 @@ However, please be careful and I cannot guarantee for anything :)
 Furthermore, it is always a good idea to backup your data and images, especially the face database (see below), after and during long manual corrections or annotations. Obviously, I tried to reduce the manual work to a minimum but if you want to have a clean face database it will be inevitable. 
 
 ### Export Options
-TODO
 
 #### HTML Gallery
-See example below.
+See example below. Use ```export.py --method 0```
 
 #### EXIF Tags
 
-I will add an option to save the recognized faces to the EXIF data. In this way they can be used to search for particular people. OneDrive, for example, reads the EXIF tags and let you search for them online. 
+In order to export the detected faces to the images' metadata, use ```export.py --method 1```.
 
-TODO
+This will first extract all metadata to a json file per image, second it will edit the "Keywords" data field and the "ImageDescription" data field, and third it will write the modified metadata to the images.
+
+ATTENTION: In the current version, the two data fields will be overwritten. Thus, if you have anything stored there already, it will be lost. I will change this soon.
+
+For metadata handling, we use [Exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/).
 
 ### Motivation
 
@@ -78,6 +81,8 @@ source venv_faces/bin/activate
 ```
 pip3 install dlib opencv-python Pillow sklearn
 ```
+[Exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/) if you want to use ```export.py``` for image metadata manopulation.
+
 4. Clone repository
 ```
 git clone https://github.com/humenbergerm/faces.git
@@ -269,7 +274,7 @@ Note: The window needs to be active for the keyboard buttons to work.
 
 More information about database manipulation can be found below.
 
-7. Export the predictions, e.g., to a html gallery. 
+7. Export the predictions to a html gallery. 
 ```
 python3 face.py export --method 0 --outdir output/album --db output/faces
 
@@ -325,6 +330,45 @@ Open http://127.0.0.1:8000 in your browser. It should look like this:
 <img src="/data/example_sigal.png" width="600"/>
 
 Now you have one album per person which you can easily browse. Remember, the images are links to the original files. 
+
+8. Export the predictions to image metadata.
+```
+python3 export.py --method 1 --db /Users/mhumenbe/Code/faces/output/faces
+
+--method: 1 writes the detected faces of each image into its metadata using Exiftool. 
+``` 
+You will see something like this:
+```
+Exporting all exif from the images.
+Loading the faces from /Users/mhumenbe/Code/faces/output/faces.
+exporting aaron carter
+exporting adam brody
+exporting adrien brody
+exporting aishwarya rai
+exporting al gore
+exporting bill gates
+exporting liv tyler
+exporting martina hingis
+exporting michelle obama
+exporting steve jobs
+exporting unknown
+Saving all faces to the images exif data.
+Loading the faces from /Users/mhumenbe/Code/faces/output/faces.
+writing exif 0/1711
+/Users/mhumenbe/Code/faces/data/celebrities/aaron carter/aaron_carter_30.jpg
+new keywords: ['aaron carter']
+    1 image files updated
+...
+writing exif 1602/1711
+/Users/mhumenbe/Code/faces/data/celebrities/steve jobs/steve_jobs_44.jpg
+new keywords: ['steve jobs']
+    1 image files updated
+no change in exif data found -> skipping
+...
+no change in exif data found -> skipping
+Done.
+```
+All images which contain faces will have them stored in their metadata. In detail: the "IPTC Keywords" field. Furthermore, the field "ImageDiscription" will contain the name of the image's folder.
 
 ### Manipulate Recognized Faces in your Database 
 

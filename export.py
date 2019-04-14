@@ -1,7 +1,7 @@
 import os.path
 import argparse
 import json
-import subprocess
+#import subprocess
 
 import utils
 
@@ -109,17 +109,20 @@ def main():
                       help="Method of export: 0 ... album, 1 ... exif")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
-  parser.add_argument('--outdir', type=str, required=True,
+  parser.add_argument('--outdir', type=str,
                       help="Output directory.")
   args = parser.parse_args()
 
   if not os.path.isdir(args.db):
     print('args.db is not a valid directory')
 
-  if not os.path.isdir(args.outdir):
-    utils.mkdir_p(args.outdir)
-
   if args.method == '0':
+    if args.outdir == None:
+      print('Provide outpu directory.')
+      exit()
+    if not os.path.isdir(args.outdir):
+      utils.mkdir_p(args.outdir)
+
     print('Exporting faces as album.')
     album_dir = export_album(args)
 
@@ -132,7 +135,7 @@ def main():
     print('Show album with: sigal serve -c sigal.conf.py {}'.format(sigal_dir))
   elif args.method == '1':
     print('Exporting all exif from the images.')
-    #export_to_json(args)
+    export_to_json(args)
     print('Saving all faces to the images exif data.')
     save_to_exif(args)
     print('Done.')
