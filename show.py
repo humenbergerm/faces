@@ -156,6 +156,9 @@ def show_class(args, svm_clf):
 
         utils.export_persons_to_csv(preds_per_person, args.db)
 
+
+# TODO: if args.det available, load it and add an option to delete the entries of the selected file
+# in this way, detect.py can recompute the detections
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--face', type=str, required=True,
@@ -164,6 +167,8 @@ def main():
                       help="Path to svm model file (e.g. svm.clf).")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
+  parser.add_argument('--dets', type=str, required=False,
+                      help="Path to the detections.bin file.")
   args = parser.parse_args()
 
   if not os.path.isdir(args.db):
