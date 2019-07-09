@@ -26,6 +26,10 @@ def show_class(args, svm_clf):
 
     preds_per_person = utils.load_faces_from_csv(args.db)
 
+    dets = {}
+    if args.dets != None:
+        dets = utils.load_detections(args.dets)
+
     if args.face == 'all':
         classes = preds_per_person
     else:
@@ -52,6 +56,7 @@ def show_class(args, svm_clf):
             elif ix < 0:
                 ix = len(face_locations)-1
 
+            image_path = preds_per_person[cls][ix][1]
             print(preds_per_person[cls][ix][1])
 
             names, probs = predict_face_svm(face_encodings[ix], svm_clf)
@@ -135,7 +140,6 @@ def show_class(args, svm_clf):
             elif key == 97: # key 'a'
                 # delete all faces of this class in the current image
                 save.append(copy.deepcopy(preds_per_person[cls]))
-                image_path = preds_per_person[cls][ix][1]
                 i = 0
                 while i < len(preds_per_person[cls]):
                     compare_path = preds_per_person[cls][i][1]
@@ -143,7 +147,12 @@ def show_class(args, svm_clf):
                         face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, i)
                     else:
                         i += 1
-                print("all faces in {} deleted".format(image_path))
+                # delete from detections.bin as well
+                if len(dets) != 0:
+                    utils.delete_detections_of_file(dets, image_path)
+                    print("all faces in {} deleted".format(image_path))
+                else:
+                    print('detections not deleted from detections.bin')
 
             elif key == 98: #key 'b'
                 if len(save) > 0:
@@ -156,9 +165,6 @@ def show_class(args, svm_clf):
 
         utils.export_persons_to_csv(preds_per_person, args.db)
 
-
-# TODO: if args.det available, load it and add an option to delete the entries of the selected file
-# in this way, detect.py can recompute the detections
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--face', type=str, required=True,
@@ -167,8 +173,8 @@ def main():
                       help="Path to svm model file (e.g. svm.clf).")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
-  parser.add_argument('--dets', type=str, required=False,
-                      help="Path to the detections.bin file.")
+  parser.add_argument('--dets', type=str, required=False, default=None,
+                      help="Root path of the detections.bin files.")
   args = parser.parse_args()
 
   if not os.path.isdir(args.db):

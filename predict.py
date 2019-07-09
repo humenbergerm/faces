@@ -69,10 +69,7 @@ def predict_image(descriptors, locations, knn_clf, distance_threshold=0.3):
 
     return predictions
 
-def predict_faces(args, knn_clf):
-
-    print('loading {}'.format(args.detections))
-    detections = pickle.load(open(args.detections, "rb"))
+def predict_faces(args, knn_clf, detections):
 
     if len(detections) == 0:
         print('no detections found')
@@ -83,14 +80,16 @@ def predict_faces(args, knn_clf):
     else:
       preds_per_person = utils.load_faces_from_csv(args.db)
 
-    detections_save = detections.copy()
+    # detections_save = detections.copy()
     for n, image_file in enumerate(detections):
         print("{}/{}".format(n, len(detections)))
-        detections_save.pop(image_file)
+        # detections_save.pop(image_file)
 
         locations = detections[image_file][0]
         descriptors = detections[image_file][1]
         full_file_path = image_file
+        if not os.path.isfile(full_file_path):
+          continue
 
         if len(locations) == 0:
           #print('no faces found')
@@ -149,11 +148,11 @@ def predict_faces(args, knn_clf):
 
     utils.export_persons_to_csv(preds_per_person, args.db)
 
-    if len(detections_save) != 0:
-      with open(args.detections, "wb") as fp:
-        pickle.dump(detections_save, fp)
-    else:
-      print('All detections processed. To make sure you do not do it again, delete {}.'.format(args.detections))
+    # if len(detections_save) != 0:
+    #   with open(args.detections, "wb") as fp:
+    #     pickle.dump(detections_save, fp)
+    # else:
+    #   print('All detections processed. To make sure you do not do it again, delete {}.'.format(args.detections))
 
 def main():
   parser = argparse.ArgumentParser()
@@ -178,14 +177,18 @@ def main():
     exit()
 
   if args.recompute:
-    answer = input("You are about to overwrite the content of args.db. Continue? y/n")
+    answer = input("You are about to delete and recompute the content of args.db. Continue? y/n")
     if answer != 'y':
       print('Aborted.')
       exit()
 
-  if os.path.isfile(args.detections):
+  if os.path.isdir(args.detections):
     print('Predicting faces in {}'.format(args.detections))
-    predict_faces(args, knn_clf)
+    detections = utils.load_detections_as_single_dict(args.detections)
+    predict_faces(args, knn_clf, detections)
+  elif os.path.isfile(args.detections):
+    detections = pickle.load(open(args.detections, "rb"))
+    predict_faces(args, knn_clf, detections)
   else:
     print('Predicting faces of class {}'.format(args.detections))
     predict_class(args, knn_clf)

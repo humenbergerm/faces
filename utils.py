@@ -20,6 +20,15 @@ def get_images_in_dir_rec(path_to_dir):
 
   return files
 
+def get_files_in_dir_by_name_rec(path_to_dir, filename):
+  files = []
+  for root, dirnames, filenames in os.walk(os.path.normpath(path_to_dir)):
+    for j in filenames:
+      if j == filename:
+        files.append(os.path.join(root, j))
+
+  return files
+
 def is_valid_timestamp(date):
   if len(date) == 19 \
     and int(date[:4]) > 1900 \
@@ -148,12 +157,26 @@ def load_faces_from_csv(preds_per_person_path):
 
   return preds_per_person
 
-def sort_folders_by_nr_of_images(folder_to_sort):
-  entries = os.listdir(os.path.normpath(folder_to_sort))
+def get_folders_in_path(path):
+  entries = os.listdir(os.path.normpath(path))
   dirs = []
   for f in entries:
-    if os.path.isdir(os.path.join(folder_to_sort, f)):
-      dirs.append(os.path.join(folder_to_sort, f))
+    if os.path.isdir(os.path.join(path, f)):
+      dirs.append(os.path.join(path, f))
+
+  return dirs
+
+def get_folders_in_dir_rec(path_to_dir):
+  dirs = []
+  for root, dirnames, filenames in os.walk(os.path.normpath(path_to_dir)):
+    for j in dirnames:
+      if os.path.isdir(os.path.join(root, j)):
+        dirs.append(os.path.join(root, j))
+
+  return dirs
+
+def sort_folders_by_nr_of_images(folder_to_sort):
+  dirs = get_folders_in_path(folder_to_sort)
 
   cnt = Counter()
   for d in dirs:
@@ -298,7 +321,6 @@ def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, inde
     cv2.imshow("detections", opencvImage)
     return cv2.waitKey(0)
 
-
 def guided_input(persons, add_persons=None):
   options = list(persons.keys())
   if add_persons != None:
@@ -352,3 +374,40 @@ def guided_input(persons, add_persons=None):
       new_name = ""
 
   return new_name
+
+def load_detections(path):
+  dets = {}
+  files = get_files_in_dir_by_name_rec(path, 'detections.bin')
+  for f in files:
+    dirname = os.path.dirname(f)
+    dets[dirname] = pickle.load(open(f, "rb"))
+
+  return dets
+
+def load_detections_as_single_dict(path):
+  dets = {}
+  files = get_files_in_dir_by_name_rec(path, 'detections.bin')
+  for f in files:
+    dirname = os.path.dirname(f)
+    tmp = pickle.load(open(f, "rb"))
+    for t in tmp:
+      dets[t] = tmp[t]
+
+  return dets
+
+def save_detections(dets):
+  for d in dets:
+    outfile = os.path.join(d, 'detections.bin')
+    with open(outfile, "wb") as fp:
+        pickle.dump(dets[d], fp)
+
+def delete_detections_of_file(dets, filepath):
+  dirname = os.path.dirname(filepath)
+  dirname = os.path.basename(dirname)
+  for d in dets:
+    if dirname in d:
+      if filepath in dets[d]:
+        dets[d].pop(filepath)
+        print('detections in {} deleted'.format(filepath))
+        return
+  print('{} not found in detections'.format(filepath))

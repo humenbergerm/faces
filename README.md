@@ -117,10 +117,11 @@ Second, we will show how to add new images to the database.
 
 1. Detect the faces. This will give us the locations and the description of the faces in your images.
 ```
-python3 face.py detect --input data/celebrities --outdir output
+python3 face.py detect --input data/celebrities --imgs_root data/celebrities --outdir output/detections
 
 --input: path to your image library
---outdir: will contain the detections (detections.bin)
+--imgs_root: path to the root directory of your image library (e.g. /User/Photos)
+--outdir: will contain the detections in the directory tree relative to imgs_root (output/detections/aaron carter/detections.bin)
 ```
 You will see something like:
 ```
@@ -136,7 +137,7 @@ Done.
 ```
 2. Cluster the detected faces. This will give us a set of folders containing the most similar images. Thus, each folder will correspond to one specific person.
 ```
-python3 face.py cluster --detections output/detections.bin --outdir output/cluster --threshold 0.5
+python3 face.py cluster --detections output/detections --outdir output/cluster --threshold 0.5
 
 --threshold: Sensitivity of clustering (a real value between 0 and 1), the higher the less clusters. Thus, a higher value results in a higher number of different people. 
 ```
@@ -192,7 +193,7 @@ Done.
 ```
 python3 face.py predict --detections output/detections.bin --knn output/models/knn.clf --db output/faces
 
---detections: detections.bin from step 1
+--detections: detections.bin files from step 1
 --knn: knn.clf from step 4
 --db: folder to store the face recognition results, thus, your face database
 ```

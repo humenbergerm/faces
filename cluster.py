@@ -11,7 +11,8 @@ def cluster_faces(args):
     cluster_root_path = args.outdir
 
     detections_path = args.detections
-    detections = pickle.load(open(detections_path, "rb"))
+    # detections = pickle.load(open(detections_path, "rb"))
+    detections = utils.load_detections_as_single_dict(detections_path)
 
     descriptors = []
     locations = []
@@ -90,7 +91,7 @@ def cluster_faces(args):
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--detections', type=str, required=True,
-                      help="Path to detections.bin.")
+                      help="Path to detections.bin files.")
   parser.add_argument('--outdir', type=str, required=True,
                       help="Path to folder with clustered faces.")
   parser.add_argument('--threshold', type=float, default=0.45,
@@ -99,8 +100,8 @@ def main():
                       action='store_true')
   args = parser.parse_args()
 
-  if not os.path.isfile(args.detections):
-    print('args.detections needs to be a valid file')
+  if not os.path.isdir(args.detections):
+    print('args.detections needs to be a valid directory')
     exit()
 
   if not os.path.isdir(args.outdir):

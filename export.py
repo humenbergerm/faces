@@ -101,7 +101,7 @@ def save_to_exif(args):
       print('no change in exif data found -> skipping')
 
     #TODO: change to exiftool -keywords+="asdasdfsf" ~/Code/faces/data/celebrities/aaron\ carter/aaron_carter_30.jpg
-    #TODO: show changes keyworks on images
+    #TODO: show changed keywords on images
 
 def main():
   parser = argparse.ArgumentParser()
