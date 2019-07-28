@@ -47,6 +47,16 @@ def show_class(args, svm_clf):
         save = []
         while key != 27 and len(face_locations) > 0:
 
+            # if mask folder is provided, show only faces within this folder
+            if args.mask_folder != None:
+                # skip all faces which do not belong to mask_folder
+                while (os.path.dirname(preds_per_person[cls][ix][1]) != args.mask_folder and ix < len(face_locations) - 1):
+                    ix += 1
+                # check if the face at ix belongs to mask_folder, if not, restart index at 0
+                if os.path.dirname(preds_per_person[cls][ix][1]) != args.mask_folder:
+                    ix = 0
+                    continue
+
             while len(save) > 100:
                 save.pop(0)
 
@@ -175,6 +185,8 @@ def main():
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--dets', type=str, required=False, default=None,
                       help="Root path of the detections.bin files.")
+  parser.add_argument('--mask_folder', type=str, required=False, default=None,
+                      help="Mask folder for faces. Only faces of images within this folder will be shown.")
   args = parser.parse_args()
 
   if not os.path.isdir(args.db):

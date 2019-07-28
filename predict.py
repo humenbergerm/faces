@@ -121,7 +121,7 @@ def predict_faces(args, knn_clf, detections):
                 for x in preds_per_person[y]:
                   if x[0][1] == predictions[id][1] and x[1] == image_file:
                     found = 1
-                    #found_at = y
+                    found_at = y
                     break
                 if found == 1:
                   break
@@ -139,8 +139,8 @@ def predict_faces(args, knn_clf, detections):
                             break
                     if not inserted:
                         preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
-            #else:
-            #    print('face already in database ({})'.format(found_at))
+            else:
+                print('face already in database ({})'.format(found_at))
 
         if n % 10000 == 0:
             utils.export_persons_to_csv(preds_per_person, args.db)
@@ -157,7 +157,7 @@ def predict_faces(args, knn_clf, detections):
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--detections', type=str, required=True,
-                      help="Path to detections.bin or name of an already predicted class, such as unknown.")
+                      help="Path to detections.bin file(s) or name of an already predicted class, such as unknown.")
   parser.add_argument('--knn', type=str, required=True,
                       help="Path to knn model file (e.g. knn.clf).")
   parser.add_argument('--db', type=str, required=True,
