@@ -235,6 +235,8 @@ Note: all detections are stored in --db now. Once you processed any detections.b
 python3 face.py show --face "liv tyler" --svm output/models/svm.clf --db output/faces
 
 --face: person you want to show. e.g.: "liv tyler", "all" shows all persons in your database. Press esc to switch to the next person.
+--svm: svm model which provides suggestions for faces
+--mask_folder: only faces of images within this folder will be shown (not used in this example)
 --db: face database from step 5
 ```
 A window displaying the members of the target class will pop up and you will see something like this:
