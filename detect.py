@@ -46,12 +46,12 @@ def detect_faces_in_folder(args, folder, output_path):
         counter += 1
 
         if detections.get(f) != None and not args.recompute:
-            print('file already processed, skipping, ...')
+            #print('file already processed, skipping, ...')
             continue
 
         locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
-
         detections[os.path.abspath(f)] = (locations, descriptors)
+        print('{} detection(s) found'.format(len(locations)))
 
         if n % 100 == 0:
             check_detections(detections)

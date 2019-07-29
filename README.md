@@ -400,7 +400,8 @@ s: save faces to args.db
 /: ... set a face to 'confirmed'
 f: ... fast-forward to the next unconfirmed face
 d: ... delete a face (the face will not really be deleted, it will just be moved to the class 'deleted'
-a: ... all faces in the image will be deleted (really deleted); this is useful for anonymous crowds you do not want to label manually)
+a: ... all faces in the image will be deleted (really deleted) but the will be recomputed by the detect command; this is useful for anonymous crowds you do not want to label manually)
+i: ... all faces in the image will be deleted (really deleted) and the detections will be set to 0, thus they won't be recomputed by the command detect (unless you use --recompute)
 b: ... undo last action
 ```
 

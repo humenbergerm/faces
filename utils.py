@@ -386,28 +386,48 @@ def load_detections(path):
 
 def load_detections_as_single_dict(path):
   dets = {}
+  det_file_map = {}
   files = get_files_in_dir_by_name_rec(path, 'detections.bin')
   for f in files:
-    dirname = os.path.dirname(f)
+    det_file_map[f] = []
+    #dirname = os.path.dirname(f)
     tmp = pickle.load(open(f, "rb"))
     for t in tmp:
+      det_file_map[f].append(t)
       dets[t] = tmp[t]
 
-  return dets
+  return dets, det_file_map
 
-def save_detections(dets):
-  for d in dets:
-    outfile = os.path.join(d, 'detections.bin')
-    with open(outfile, "wb") as fp:
-        pickle.dump(dets[d], fp)
+def save_detections(dets, det_file_map):
+  #dets_per_folder = {}
+  for dm in det_file_map:
+    dets_to_save = {}
+    for d in det_file_map[dm]:
+      if dets.get(d) != None:
+        dets_to_save[d] = dets[d]
+
+    with open(dm, "wb") as fp:
+      pickle.dump(dets_to_save, fp)
+
+    # dirname = os.path.dirname(d)
+    # if len(dets_per_folder[dirname]) == 0:
+    #   dets_per_folder[dirname][d] = dets[d]
+    # dets_per_folder[dirname]
+
+    # outfile = os.path.join(d, 'detections.bin')
+    # with open(outfile, "wb") as fp:
+    #   pickle.dump(dets[d], fp)
 
 def delete_detections_of_file(dets, filepath):
-  dirname = os.path.dirname(filepath)
-  dirname = os.path.basename(dirname)
-  for d in dets:
-    if dirname in d:
-      if filepath in dets[d]:
-        dets[d].pop(filepath)
-        print('detections in {} deleted'.format(filepath))
-        return
-  print('{} not found in detections'.format(filepath))
+  if dets.get(filepath) != None:
+    dets.pop(filepath)
+    print('detections in {} deleted'.format(filepath))
+  else:
+    print('{} not found in detections'.format(filepath))
+
+def ignore_detections_of_file(dets, filepath):
+  if dets.get(filepath) != None:
+    dets[filepath] = ([],[])
+    print('detections in {} will be ignored'.format(filepath))
+  else:
+    print('{} not found in detections'.format(filepath))

@@ -12,7 +12,7 @@ def cluster_faces(args):
 
     detections_path = args.detections
     # detections = pickle.load(open(detections_path, "rb"))
-    detections = utils.load_detections_as_single_dict(detections_path)
+    detections, det_file_map = utils.load_detections_as_single_dict(detections_path)
 
     descriptors = []
     locations = []

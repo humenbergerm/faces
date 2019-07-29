@@ -28,7 +28,7 @@ def show_class(args, svm_clf):
 
     dets = {}
     if args.dets != None:
-        dets = utils.load_detections(args.dets)
+        dets, det_file_map = utils.load_detections_as_single_dict(args.dets)
 
     if args.face == 'all':
         classes = preds_per_person
@@ -157,13 +157,28 @@ def show_class(args, svm_clf):
                         face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, i)
                     else:
                         i += 1
-                # delete from detections.bin as well
+                # delete detections as well
                 if len(dets) != 0:
                     utils.delete_detections_of_file(dets, image_path)
                     print("all faces in {} deleted".format(image_path))
                 else:
                     print('detections not deleted from detections.bin')
-
+            elif key == 105: # key 'i'
+                # delete all faces of this class in the current image AND set it to be ignored in the future (also for detection)
+                save.append(copy.deepcopy(preds_per_person[cls]))
+                i = 0
+                while i < len(preds_per_person[cls]):
+                    compare_path = preds_per_person[cls][i][1]
+                    if preds_per_person[cls][i][1] == image_path:
+                        face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, i)
+                    else:
+                        i += 1
+                # ignore detections in the future
+                if len(dets) != 0:
+                    utils.ignore_detections_of_file(dets, image_path)
+                    #print("all faces in {} deleted and image will be ignored".format(image_path))
+                else:
+                    print('detections not deleted from detections.bin')
             elif key == 98: #key 'b'
                 if len(save) > 0:
                     preds_per_person[cls] = copy.deepcopy(save.pop())
@@ -171,9 +186,13 @@ def show_class(args, svm_clf):
                     print("undone last action")
             elif key == 115: #key 's'
                 utils.export_persons_to_csv(preds_per_person, args.db)
+                if args.dets != None:
+                  utils.save_detections(dets, det_file_map)
                 print('saved')
 
         utils.export_persons_to_csv(preds_per_person, args.db)
+        if args.dets != None:
+          utils.save_detections(dets, det_file_map)
 
 def main():
   parser = argparse.ArgumentParser()

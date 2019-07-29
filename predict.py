@@ -184,7 +184,7 @@ def main():
 
   if os.path.isdir(args.detections):
     print('Predicting faces in {}'.format(args.detections))
-    detections = utils.load_detections_as_single_dict(args.detections)
+    detections, det_file_map = utils.load_detections_as_single_dict(args.detections)
     predict_faces(args, knn_clf, detections)
   elif os.path.isfile(args.detections):
     detections = pickle.load(open(args.detections, "rb"))
