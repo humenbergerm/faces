@@ -270,6 +270,14 @@ def delete_element_preds_per_person(preds_per_person, cls, ix):
 
   return face_locations, face_encodings
 
+def insert_element_preds_per_person(preds_per_person, cls, ix, new_cls, conf=-1):
+  tmp = preds_per_person[cls][ix]
+  if conf == -1:
+    conf = tmp[3]
+  if preds_per_person.get(new_cls) == None:
+    preds_per_person[new_cls] = []
+  preds_per_person[new_cls].append(((new_cls, tmp[0][1]), tmp[1], tmp[2], conf, tmp[4]))
+
 def count_preds_status(preds_per_person):
   count_ignored = 0
   count_confirmed = 0

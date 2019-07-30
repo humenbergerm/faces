@@ -24,7 +24,7 @@ def train(args):
 
     preds_per_person = utils.load_faces_from_csv(train_dir)
     for p in preds_per_person:
-      if p != 'unknown':
+      if p != 'unknown' and p != 'deleted':
         for l in preds_per_person[p]:
           X.append(l[2])
           y.append(p)

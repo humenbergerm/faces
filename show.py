@@ -13,13 +13,14 @@ def predict_face_svm(enc, svm):
 
     names = []
     probs = []
+    print('\n')
     for s in range(10):
         ix = sorted[s]
         names.append(svm.classes_[ix])
         probs.append(preds[ix])
         print('{}: name: {}, prob: {}'.format(s, names[s], probs[s]))
 
-    print('\n\n')
+    print('\n')
     return names, probs
 
 def show_class(args, svm_clf):
@@ -94,8 +95,7 @@ def show_class(args, svm_clf):
                     # add pred in new list
                     if preds_per_person.get(new_name) == None:
                         preds_per_person[new_name] = []
-                    tmp = preds_per_person[cls][ix]
-                    preds_per_person[new_name].append(((new_name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
+                    utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
                     # delete pred in current list
                     face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
@@ -105,8 +105,7 @@ def show_class(args, svm_clf):
                 # add pred in new list
                 if preds_per_person.get(new_name) == None:
                     preds_per_person[new_name] = []
-                tmp = preds_per_person[cls][ix]
-                preds_per_person[new_name].append(((new_name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
+                utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
                 # delete pred in current list
                 face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                 print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
@@ -126,8 +125,7 @@ def show_class(args, svm_clf):
             elif key >= 48 and key <= 57: # keys '0' - '9'
                 save.append(copy.deepcopy(preds_per_person[cls]))
                 new_name = names[key-48]
-                tmp = preds_per_person[cls][ix]
-                preds_per_person[new_name].append(((new_name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
+                utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
                 # delete pred in current list
                 face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                 print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
@@ -138,8 +136,7 @@ def show_class(args, svm_clf):
                   # add pred in new list
                   if preds_per_person.get(new_name) == None:
                     preds_per_person[new_name] = []
-                  tmp = preds_per_person[cls][ix]
-                  preds_per_person[new_name].append(((new_name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
+                  utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
                   # delete pred in current list
                   face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                 else:
