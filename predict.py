@@ -80,6 +80,8 @@ def predict_faces(args, knn_clf, detections):
     else:
       preds_per_person = utils.load_faces_from_csv(args.db)
 
+    counter = 0
+
     # detections_save = detections.copy()
     for n, image_file in enumerate(detections):
         print("{}/{}".format(n, len(detections)))
@@ -128,6 +130,7 @@ def predict_faces(args, knn_clf, detections):
 
             if found == 0:
                 print('Found new face {}.'.format(name))
+                counter = counter + 1
                 if len(preds_per_person[name]) == 0 or no_timestamp:
                     preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
                 else:
@@ -139,14 +142,15 @@ def predict_faces(args, knn_clf, detections):
                             break
                     if not inserted:
                         preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
-            else:
-                print('face already in database ({})'.format(found_at))
+            # else:
+            #     print('face already in database ({})'.format(found_at))
 
         if n % 10000 == 0:
             utils.export_persons_to_csv(preds_per_person, args.db)
             print('saved')
 
     utils.export_persons_to_csv(preds_per_person, args.db)
+    print('Found {} new faces.'.format(counter))
 
     # if len(detections_save) != 0:
     #   with open(args.detections, "wb") as fp:

@@ -290,6 +290,15 @@ def count_preds_status(preds_per_person):
 
   return count_confirmed, count_ignored, count_not_ignored
 
+def resizeCV(img, w):
+  height, width = img.shape[:2]
+
+  s = w / width
+  height *= s
+  width *= s
+
+  return cv2.resize(img, (int(width), int(height)))
+
 # if index is -1: use all elements of predictions, if not, only use one (given by the index)
 def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, index=-1, img_path=None, text=None):
     if img_path != None:

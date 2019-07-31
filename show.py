@@ -4,6 +4,8 @@ import argparse
 import random
 import numpy as np
 import copy
+#import cv2
+import subprocess
 
 import utils
 
@@ -144,6 +146,13 @@ def show_class(args, svm_clf):
                   # delete face
                   face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                 print("face deleted")
+            elif key == 116: # key 't'
+                subprocess.call(["open", "-R", image_path])
+                # image = cv2.imread(image_path)
+                # imgtrans = cv2.transpose(image)
+                # image = cv2.flip(imgtrans, 1)
+                # cv2.imshow('rotated', utils.resizeCV(image, 600))
+                # cv2.waitKey(1)
             elif key == 97: # key 'a'
                 # delete all faces of this class in the current image
                 save.append(copy.deepcopy(preds_per_person[cls]))

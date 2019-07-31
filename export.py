@@ -36,6 +36,8 @@ def export_to_json(args):
     utils.mkdir_p(json_dir)
 
   for p in preds_per_person:
+    if p == 'deleted' or p == 'unknown':
+      continue
     print('exporting {}'.format(p))
 
     for f in preds_per_person[p]:
@@ -44,7 +46,6 @@ def export_to_json(args):
       json_path = json_dir + f[1][:-3] + 'json'
       if os.path.isfile(json_path):
         continue
-      #####json_path = os.path.join(json_dir_face, f[1].replace('/', '_')[1:-3].replace(' ', '_') + 'json')
       if not os.path.isdir(os.path.dirname(json_path)):
         utils.mkdir_p(os.path.dirname(json_path))
 
@@ -52,6 +53,7 @@ def export_to_json(args):
       os.system(arg_str)
 
 def save_to_exif(args):
+  face_prefix = 'f '
   json_dir = os.path.join(args.db, 'exif_json')
 
   preds_per_person = utils.load_faces_from_csv(args.db)
@@ -67,40 +69,53 @@ def save_to_exif(args):
       if os.path.isfile(f[1]):
         if keywords_files.get(f[1]) == None:
           keywords_files[f[1]] = []
-        if p != 'unknown' and p != 'deleted' and p != 'recompute':
-          keywords_files[f[1]].append(p)
+        if p != 'unknown' and p != 'deleted':
+          keywords_files[f[1]].append(face_prefix + p)
 
   for i,k in enumerate(keywords_files):
+    changed = False
+    print('processing exif {}/{} ... {}'.format(i, len(keywords_files), k))
     json_path = json_dir + k[:-3] + 'json'
     if not os.path.isfile(json_path):
       continue
     with open(json_path) as fp:
       exif_image = json.load(fp)
 
-    #print(keywords_files[k])
-
     if exif_image[0].get('SourceFile') == None or exif_image[0].get('SourceFile') == '':
       exif_image[0]['SourceFile'] = k
-    exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
-    keywords = keywords_files[k]
+      changed = True
+    if 'ImageDescription' not in exif_image[0] or exif_image[0]['ImageDescription'] != os.path.basename(os.path.dirname(k)):
+      exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
+      changed = True
     if exif_image[0].get('Keywords') == None:
       exif_image[0]['Keywords'] = []
-    if set(keywords) != set(exif_image[0]['Keywords']):
-      print('writing exif {}/{}'.format(i, len(keywords_files)))
-      print(k)
-      print('new keywords: {}'.format(keywords))
-      exif_image[0]['Keywords'] = keywords
-      #exif_image[0]['UserComment'] = ''
+      changed = True
 
+    # for kw in keywords_files[k]:
+    #   if kw not in exif_image[0]['Keywords']:
+    #     exif_image[0]['Keywords'].append(kw)
+    #     changed = True
+
+    # get face keywords (they start with 'f ')
+    kw_faces_exif = []
+    kw_others = []
+    for kw in exif_image[0]['Keywords']:
+      if kw[:2] == face_prefix:
+        kw_faces_exif.append(kw)
+      else:
+        kw_others.append(kw)
+
+    if set(keywords_files[k]) != set(kw_faces_exif):
+      exif_image[0]['Keywords'] = keywords_files[k] + kw_others
+      changed = True
+    if changed:
       with open(json_path, 'w') as fp:
         json.dump(exif_image, fp)
-
       arg_str = 'exiftool -json="' + json_path + '" "' + k + '" -overwrite_original'
       os.system(arg_str)
     else:
-      print('no change in exif data found -> skipping')
+      print('no change in exif found')
 
-    #TODO: change to exiftool -keywords+="asdasdfsf" ~/Code/faces/data/celebrities/aaron\ carter/aaron_carter_30.jpg
     #TODO: show changed keywords on images
 
 def main():
@@ -118,7 +133,7 @@ def main():
 
   if args.method == '0':
     if args.outdir == None:
-      print('Provide outpu directory.')
+      print('Provide output directory.')
       exit()
     if not os.path.isdir(args.outdir):
       utils.mkdir_p(args.outdir)
