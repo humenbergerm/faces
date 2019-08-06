@@ -38,9 +38,14 @@ def export_to_json(args):
   for p in preds_per_person:
     if p == 'deleted' or p == 'unknown':
       continue
+
     print('exporting {}'.format(p))
 
     for f in preds_per_person[p]:
+      # check mask
+      if args.mask_folder != None:
+        if os.path.dirname(f[1]) != args.mask_folder:
+          continue
       if not os.path.isfile(f[1]):
         continue
       json_path = json_dir + f[1][:-3] + 'json'
@@ -54,7 +59,7 @@ def export_to_json(args):
 
 def save_to_exif(args):
   face_prefix = 'f '
-  json_dir = os.path.join(args.db, 'exif_json')
+  # json_dir = os.path.join(args.db, 'exif_json')
 
   preds_per_person = utils.load_faces_from_csv(args.db)
   if len(preds_per_person) == 0:
@@ -66,6 +71,11 @@ def save_to_exif(args):
   for p in preds_per_person:
     #print('exporting {}'.format(p))
     for f in preds_per_person[p]:
+      # check mask
+      if args.mask_folder != None:
+        if os.path.dirname(f[1]) != args.mask_folder:
+          continue
+
       if os.path.isfile(f[1]):
         if keywords_files.get(f[1]) == None:
           keywords_files[f[1]] = []
@@ -75,8 +85,15 @@ def save_to_exif(args):
   for i,k in enumerate(keywords_files):
     changed = False
     print('processing exif {}/{} ... {}'.format(i, len(keywords_files), k))
-    json_path = json_dir + k[:-3] + 'json'
+    # json_path = json_dir + k[:-3] + 'json'
+    json_path = os.path.join(args.db, 'tmp_exif.json')
+
+    # extract existing exif data from image
+    arg_str = 'exiftool -json "' + k + '" > "' + json_path + '"'
+    os.system(arg_str)
+
     if not os.path.isfile(json_path):
+      print('Could not extract EXIF data from {}'.format(k))
       continue
     with open(json_path) as fp:
       exif_image = json.load(fp)
@@ -91,22 +108,27 @@ def save_to_exif(args):
       exif_image[0]['Keywords'] = []
       changed = True
 
-    # for kw in keywords_files[k]:
-    #   if kw not in exif_image[0]['Keywords']:
-    #     exif_image[0]['Keywords'].append(kw)
-    #     changed = True
-
     # get face keywords (they start with 'f ')
     kw_faces_exif = []
     kw_others = []
-    for kw in exif_image[0]['Keywords']:
-      if kw[:2] == face_prefix:
-        kw_faces_exif.append(kw)
+    if isinstance(exif_image[0]['Keywords'], str):
+      # only one keyword found
+      if exif_image[0]['Keywords'][:2] == face_prefix:
+        kw_faces_exif.append(exif_image[0]['Keywords'])
       else:
-        kw_others.append(kw)
+        kw_others.append(exif_image[0]['Keywords'])
+    else:
+      # multiple keywords found
+      for kw in exif_image[0]['Keywords']:
+        if kw[:2] == face_prefix:
+          kw_faces_exif.append(kw)
+        else:
+          kw_others.append(kw)
 
     if set(keywords_files[k]) != set(kw_faces_exif):
-      exif_image[0]['Keywords'] = keywords_files[k] + kw_others
+      exif_image[0]['Keywords'] = keywords_files[k]
+      if not args.overwrite:
+        exif_image[0]['Keywords'] = exif_image[0]['Keywords'] + kw_others
       changed = True
     if changed:
       with open(json_path, 'w') as fp:
@@ -116,8 +138,6 @@ def save_to_exif(args):
     else:
       print('no change in exif found')
 
-    #TODO: show changed keywords on images
-
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--method', type=str, required=True,
@@ -126,6 +146,10 @@ def main():
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--outdir', type=str,
                       help="Output directory.")
+  parser.add_argument('--mask_folder', type=str, required=False, default=None,
+                      help="Mask folder for faces. Only faces of images within this folder will be processed.")
+  parser.add_argument('--overwrite', help='Overwrite all keywords in EXIF data.', default=False,
+                      action='store_true')
   args = parser.parse_args()
 
   if not os.path.isdir(args.db):
@@ -149,8 +173,8 @@ def main():
     print('To generate a Sigal album use: {}'.format(''.join(str(e) for e in cmd_str)))
     print('Show album with: sigal serve -c sigal.conf.py {}'.format(sigal_dir))
   elif args.method == '1':
-    print('Exporting all exif from the images.')
-    export_to_json(args)
+    # print('Exporting all exif from the images.')
+    # export_to_json(args)
     print('Saving all faces to the images exif data.')
     save_to_exif(args)
     print('Done.')

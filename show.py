@@ -55,10 +55,10 @@ def show_class(args, svm_clf):
                 # skip all faces which do not belong to mask_folder
                 while (os.path.dirname(preds_per_person[cls][ix][1]) != args.mask_folder and ix < len(face_locations) - 1):
                     ix += 1
-                # check if the face at ix belongs to mask_folder, if not, restart index at 0
+                # check if the face at ix belongs to mask_folder, if not, exit
                 if os.path.dirname(preds_per_person[cls][ix][1]) != args.mask_folder:
-                    ix = 0
-                    continue
+                    print('no more faces of class {} found in {}'.format(cls, args.mask_folder))
+                    break
 
             while len(save) > 100:
                 save.pop(0)
@@ -175,7 +175,7 @@ def show_class(args, svm_clf):
                 i = 0
                 while i < len(preds_per_person[cls]):
                     compare_path = preds_per_person[cls][i][1]
-                    if preds_per_person[cls][i][1] == image_path:
+                    if compare_path == image_path:
                         face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, i)
                     else:
                         i += 1

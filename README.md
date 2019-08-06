@@ -372,6 +372,7 @@ no change in exif data found -> skipping
 Done.
 ```
 All images which contain faces will have them stored in their metadata. In detail: the "IPTC Keywords" field. Furthermore, the field "ImageDiscription" will contain the name of the image's folder.
+The keywords which describe a face will have a prefix such as 'f '.
 
 ### Manipulate Recognized Faces in your Database 
 
