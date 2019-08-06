@@ -115,7 +115,7 @@ def load_faces_from_csv(preds_per_person_path):
     return preds_per_person
   for f in csv_files:
     name = os.path.splitext(os.path.basename(f))[0]
-    # print('loading {}'.format(name))
+    print('loading {}'.format(name))
     descs = pickle.load(open(os.path.join(preds_per_person_path, name + '.bin'), "rb"))
     for i in bin_files:
       filename = os.path.splitext(os.path.basename(i))[0]
@@ -250,6 +250,29 @@ def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=Fals
 
   return locations, descriptors
 
+def detect_faces_in_image_cv2(img_path, net, facerec, sp):
+  opencvImage = cv2.imread(img_path)
+  h, w = opencvImage.shape[:2]
+  blob = cv2.dnn.blobFromImage(cv2.resize(opencvImage, (300,300)), 1.0, (300, 300), (103.93, 116.77, 123.68))
+
+  net.setInput(blob)
+  detections = net.forward()
+
+  locations = []
+  descriptors = []
+  for i in range(detections.shape[2]):
+    confidence = detections[0, 0, i, 2]
+    if confidence > 0.5:
+      box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+      (x1, y1, x2, y2) = box.astype("int")
+      d = dlib.rectangle(x1, y1, x2, y2)
+      shape = sp(opencvImage, d)
+      face_descriptor = facerec.compute_face_descriptor(opencvImage, shape)
+      descriptors.append(np.array(face_descriptor))
+      locations.append((d.top(), d.right(), d.bottom(), d.left()))
+
+  return locations, descriptors
+
 def initialize_face_data(preds_per_person, cls):
   face_locations = []
   face_encodings = []
@@ -298,6 +321,24 @@ def resizeCV(img, w):
   width *= s
 
   return cv2.resize(img, (int(width), int(height)))
+
+def show_detections_on_image(locations, img_path):
+  opencvImage = cv2.imread(img_path)
+
+  height, width = opencvImage.shape[:2]
+  ws = 600.0 / float(height)
+  opencvImage = cv2.resize(opencvImage, (int(width * ws), int(height * ws)))
+
+  for l in locations:
+    (top, right, bottom, left) = l
+    top = int(top * ws)
+    right = int(right * ws)
+    bottom = int(bottom * ws)
+    left = int(left * ws)
+    cv2.rectangle(opencvImage, (left, top), (right, bottom), (0, 255, 0), 1)
+
+  cv2.imshow("detections", opencvImage)
+  return cv2.waitKey(0)
 
 # if index is -1: use all elements of predictions, if not, only use one (given by the index)
 def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, index=-1, img_path=None, text=None):
@@ -406,6 +447,7 @@ def load_detections_as_single_dict(path):
   det_file_map = {}
   files = get_files_in_dir_by_name_rec(path, 'detections.bin')
   for f in files:
+    print('loading {}'.format(os.path.dirname(f)))
     det_file_map[f] = []
     #dirname = os.path.dirname(f)
     tmp = pickle.load(open(f, "rb"))

@@ -3,6 +3,7 @@ import os.path
 import pickle
 import argparse
 import dlib
+import cv2
 
 import utils
 
@@ -32,7 +33,13 @@ def detect_faces_in_folder(args, folder, output_path):
     else:
         detections = {}
 
+    # opencv face detector
+    modelFile = "models/opencv_face_detector_uint8.pb"
+    configFile = "models/opencv_face_detector.pbtxt"
+    net = cv2.dnn.readNetFromTensorflow(modelFile, configFile)
+
     detector = dlib.get_frontal_face_detector()
+    # detector = dlib.cnn_face_detection_model_v1("models/mmod_human_face_detector.dat")
     sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
     facerec = dlib.face_recognition_model_v1("models/dlib_face_recognition_resnet_model_v1.dat")
 
@@ -47,11 +54,19 @@ def detect_faces_in_folder(args, folder, output_path):
 
         if detections.get(f) != None and not args.recompute:
             #print('file already processed, skipping, ...')
+            locs, descs = detections[os.path.abspath(f)]
+            utils.show_detections_on_image(locs, f)
             continue
 
-        locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
+        locations, descriptors = utils.detect_faces_in_image_cv2(f, net, facerec, sp)
         detections[os.path.abspath(f)] = (locations, descriptors)
         print('{} detection(s) found'.format(len(locations)))
+        # utils.show_detections_on_image(locations, f)
+
+        # locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
+        # detections[os.path.abspath(f)] = (locations, descriptors)
+        # print('{} detection(s) found'.format(len(locations)))
+        # utils.show_detections_on_image(locations, f)
 
         if n % 100 == 0:
             check_detections(detections)
