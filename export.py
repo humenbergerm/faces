@@ -95,21 +95,11 @@ def save_to_exif(args):
     changed = False
     print('processing exif {}/{} ... {}'.format(i, len(all_images), k))
     ex = exif.ExifEditor(k)
-
-    tag = ex.getTag('ImageDescription')
+    # test = ex.getDictTags()
+    tag = ex.getTag('Description')
     if tag != os.path.basename(os.path.dirname(k)):
-      ex.setTag('ImageDescription', os.path.basename(os.path.dirname(k)))
-    #   exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
-    #   changed = True
-    # if exif_image[0].get('Keywords') == None:
-    #   exif_image[0]['Keywords'] = []
-    #   changed = True
-    # if exif_image[0].get('XPKeywords') != None:
-    #   exif_image[0]['XPKeywords'] = []
-    #   changed = True
-    # if exif_image[0].get('LastKeywordXMP') != None:
-    #   exif_image[0]['LastKeywordXMP'] = []
-    #   changed = True
+      ex.setTag('Description', os.path.basename(os.path.dirname(k)))
+      print('updated tag <Description>')
 
     # get face keywords (they start with 'f ')
     kw_faces_exif = []
