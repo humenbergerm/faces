@@ -50,6 +50,12 @@ def show_class(args, svm_clf):
         save = []
         while key != 27 and len(face_locations) > 0:
 
+            if ix >= len(face_locations):
+                ix = 0
+
+            elif ix < 0:
+                ix = len(face_locations)-1
+
             # if mask folder is provided, show only faces within this folder
             if args.mask_folder != None:
                 # skip all faces which do not belong to mask_folder
@@ -62,12 +68,6 @@ def show_class(args, svm_clf):
 
             while len(save) > 100:
                 save.pop(0)
-
-            if ix >= len(face_locations):
-                ix = 0
-
-            elif ix < 0:
-                ix = len(face_locations)-1
 
             image_path = preds_per_person[cls][ix][1]
             print(preds_per_person[cls][ix][1])

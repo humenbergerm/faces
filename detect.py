@@ -4,6 +4,7 @@ import pickle
 import argparse
 import dlib
 import cv2
+from shapely.geometry import Polygon
 
 import utils
 
@@ -25,6 +26,8 @@ def detect_faces(args):
         utils.mkdir_p(output_path)
       detect_faces_in_folder(args, d, output_path)
 
+#todo: if no detections found, try with other detector
+#      try with n detectors and check if detections overlap
 def detect_faces_in_folder(args, folder, output_path):
     detections_path = os.path.join(output_path, "detections.bin")
     if os.path.isfile(detections_path):
@@ -53,20 +56,37 @@ def detect_faces_in_folder(args, folder, output_path):
         counter += 1
 
         if detections.get(f) != None and not args.recompute:
-            #print('file already processed, skipping, ...')
-            locs, descs = detections[os.path.abspath(f)]
-            utils.show_detections_on_image(locs, f)
+            print('file already processed, skipping, ...')
+            # locs, descs = detections[os.path.abspath(f)]
+            # utils.show_detections_on_image(locs, f)
             continue
 
-        locations, descriptors = utils.detect_faces_in_image_cv2(f, net, facerec, sp)
-        detections[os.path.abspath(f)] = (locations, descriptors)
-        print('{} detection(s) found'.format(len(locations)))
+        locations_cv2, descriptors_cv2 = utils.detect_faces_in_image_cv2(f, net, facerec, sp)
+        print('cv2: {} detection(s) found'.format(len(locations_cv2)))
         # utils.show_detections_on_image(locations, f)
 
-        # locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
-        # detections[os.path.abspath(f)] = (locations, descriptors)
-        # print('{} detection(s) found'.format(len(locations)))
-        # utils.show_detections_on_image(locations, f)
+        locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
+        print('dlib: {} detection(s) found'.format(len(locations)))
+        # utils.show_detections_on_image(locations+locations_cv2, f)
+
+        # merge detections
+        locs = locations_cv2.copy()
+        descs = descriptors_cv2.copy()
+        for l, d in zip(locations, descriptors):
+          intersect = False
+          p1 = Polygon([(l[3], l[0]), (l[1], l[0]), (l[1], l[2]), (l[3], l[2])])
+          for l1, d1 in zip(locations_cv2, descriptors_cv2):
+            p2 = Polygon([(l1[3], l1[0]), (l1[1], l1[0]), (l1[1], l1[2]), (l1[3], l1[2])])
+            if p1.intersects(p2):
+              intersect = True
+          if not intersect:
+            locs.append(l)
+            descs.append(d)
+
+        print('total: {} detection(s) found'.format(len(locs)))
+        detections[os.path.abspath(f)] = (locs, descs)
+
+        # utils.show_detections_on_image(locs, f)
 
         if n % 100 == 0:
             check_detections(detections)

@@ -32,13 +32,15 @@ ATTENTION: In the current version, the two data fields will be overwritten. Thus
 
 For metadata handling, we use [Exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/).
 
+[Adobe Bridge](https://www.adobe.com/products/bridge.html) is a very nice tool to edit metadata. You can use this to clean your images before tagging them with this (or any other) software.
+
 ### Motivation
 
 I was looking for a solution to organize my personal photo library and I also wanted to play with face detection algorithms. Furthermore, I wanted to have something easier to control (privacy, keep my own folder structure, do not modify my photos unless I want it to, etc.) than the various online solutions around.
 
 ### Inspiration
 
-Obviously, the well working solutions from e.g. Google Photos and the recent advances in face detection and recognition inspired me. After some literature research, I found various sources such as [dlib](https://github.com/davisking/dlib) or [face_recognition](https://github.com/ageitgey/face_recognition) providing state of the art implementations. The latter provides a nice and clean way for face recognition using the command line but I was looking for a more complete solution from initial training till continous update of my photo database.
+Obviously, the well working solutions from e.g. Google Photos and the recent advances in face detection and recognition inspired me. After some literature research, I found various sources such as [dlib](https://github.com/davisking/dlib), [face_recognition](https://github.com/ageitgey/face_recognition) or [opencv](https://opencv.org/) providing state of the art implementations. The latter provides a nice and clean way for face recognition using the command line but I was looking for a more complete solution from initial training till continous update of my photo database.
 
 Inspired by this and motivated by my own idea of personal face recognition, I started to work on this project.
 

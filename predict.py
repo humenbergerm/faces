@@ -152,12 +152,6 @@ def predict_faces(args, knn_clf, detections):
     utils.export_persons_to_csv(preds_per_person, args.db)
     print('Found {} new faces.'.format(counter))
 
-    # if len(detections_save) != 0:
-    #   with open(args.detections, "wb") as fp:
-    #     pickle.dump(detections_save, fp)
-    # else:
-    #   print('All detections processed. To make sure you do not do it again, delete {}.'.format(args.detections))
-
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--detections', type=str, required=True,

@@ -4,6 +4,7 @@ import json
 #import subprocess
 
 import utils
+import exif
 
 def export_album(args):
   preds_per_person = utils.load_faces_from_csv(args.db)
@@ -82,59 +83,61 @@ def save_to_exif(args):
         if p != 'unknown' and p != 'deleted':
           keywords_files[f[1]].append(face_prefix + p)
 
-  for i,k in enumerate(keywords_files):
+  if args.mask_folder == None:
+    all_images = utils.get_images_in_dir_rec(args.imgs_root)
+  else:
+    all_images = utils.get_images_in_dir_rec(args.mask_folder)
+
+  for i,k in enumerate(all_images):
+    if args.mask_folder != None:
+      if os.path.dirname(k) != args.mask_folder:
+        continue
     changed = False
-    print('processing exif {}/{} ... {}'.format(i, len(keywords_files), k))
-    # json_path = json_dir + k[:-3] + 'json'
-    json_path = os.path.join(args.db, 'tmp_exif.json')
+    print('processing exif {}/{} ... {}'.format(i, len(all_images), k))
+    ex = exif.ExifEditor(k)
 
-    # extract existing exif data from image
-    arg_str = 'exiftool -json "' + k + '" > "' + json_path + '"'
-    os.system(arg_str)
-
-    if not os.path.isfile(json_path):
-      print('Could not extract EXIF data from {}'.format(k))
-      continue
-    with open(json_path) as fp:
-      exif_image = json.load(fp)
-
-    if exif_image[0].get('SourceFile') == None or exif_image[0].get('SourceFile') == '':
-      exif_image[0]['SourceFile'] = k
-      changed = True
-    if 'ImageDescription' not in exif_image[0] or exif_image[0]['ImageDescription'] != os.path.basename(os.path.dirname(k)):
-      exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
-      changed = True
-    if exif_image[0].get('Keywords') == None:
-      exif_image[0]['Keywords'] = []
-      changed = True
+    tag = ex.getTag('ImageDescription')
+    if tag != os.path.basename(os.path.dirname(k)):
+      ex.setTag('ImageDescription', os.path.basename(os.path.dirname(k)))
+    #   exif_image[0]['ImageDescription'] = os.path.basename(os.path.dirname(k))
+    #   changed = True
+    # if exif_image[0].get('Keywords') == None:
+    #   exif_image[0]['Keywords'] = []
+    #   changed = True
+    # if exif_image[0].get('XPKeywords') != None:
+    #   exif_image[0]['XPKeywords'] = []
+    #   changed = True
+    # if exif_image[0].get('LastKeywordXMP') != None:
+    #   exif_image[0]['LastKeywordXMP'] = []
+    #   changed = True
 
     # get face keywords (they start with 'f ')
     kw_faces_exif = []
     kw_others = []
-    if isinstance(exif_image[0]['Keywords'], str):
-      # only one keyword found
-      if exif_image[0]['Keywords'][:2] == face_prefix:
-        kw_faces_exif.append(exif_image[0]['Keywords'])
-      else:
-        kw_others.append(exif_image[0]['Keywords'])
-    else:
-      # multiple keywords found
-      for kw in exif_image[0]['Keywords']:
-        if kw[:2] == face_prefix:
-          kw_faces_exif.append(kw)
-        else:
-          kw_others.append(kw)
+    kws = ex.getKeywords()
 
-    if set(keywords_files[k]) != set(kw_faces_exif):
-      exif_image[0]['Keywords'] = keywords_files[k]
-      if not args.overwrite:
-        exif_image[0]['Keywords'] = exif_image[0]['Keywords'] + kw_others
-      changed = True
+    # multiple keywords found
+    for kw in kws:
+      if kw[:2] == face_prefix:
+        kw_faces_exif.append(kw)
+      else:
+        kw_others.append(kw)
+
+    new_kws = []
+
+    if keywords_files.get(k) == None:
+      if args.overwrite:
+        changed = True
+    else:
+      if set(keywords_files[k]) != set(kw_faces_exif):
+        new_kws = keywords_files[k]
+        if not args.overwrite:
+          new_kws = new_kws + kw_others
+        changed = True
+
     if changed:
-      with open(json_path, 'w') as fp:
-        json.dump(exif_image, fp)
-      arg_str = 'exiftool -json="' + json_path + '" "' + k + '" -overwrite_original'
-      os.system(arg_str)
+      ex.setKeywords(new_kws)
+
     else:
       print('no change in exif found')
 
@@ -148,6 +151,8 @@ def main():
                       help="Output directory.")
   parser.add_argument('--mask_folder', type=str, required=False, default=None,
                       help="Mask folder for faces. Only faces of images within this folder will be processed.")
+  parser.add_argument('--imgs_root', type=str, required=True,
+                      help="Root directory of your image library.")
   parser.add_argument('--overwrite', help='Overwrite all keywords in EXIF data.', default=False,
                       action='store_true')
   args = parser.parse_args()
