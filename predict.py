@@ -75,10 +75,10 @@ def predict_faces(args, knn_clf, detections):
         print('no detections found')
         exit()
 
-    if args.recompute:
-      preds_per_person = {}
-    else:
-      preds_per_person = utils.load_faces_from_csv(args.db)
+    # if args.recompute:
+    #   preds_per_person = {}
+    # else:
+    preds_per_person = utils.load_faces_from_csv(args.db)
 
     counter = 0
 
@@ -118,15 +118,16 @@ def predict_faces(args, knn_clf, detections):
 
             found = 0
             #found_at = ''
-            if not args.recompute:
-              for y in preds_per_person:
-                for x in preds_per_person[y]:
-                  if x[0][1] == predictions[id][1] and x[1] == image_file:
-                    found = 1
-                    found_at = y
-                    break
-                if found == 1:
+            # if not args.recompute:
+            for y in preds_per_person:
+              for x in preds_per_person[y]:
+                if x[0][1] == predictions[id][1] and x[1] == image_file:
+                  found = 1
+                  found_at = y
+                  print('Found old face {}.'.format(y))
                   break
+              if found == 1:
+                break
 
             if found == 0:
                 print('Found new face {}.'.format(name))
@@ -160,8 +161,8 @@ def main():
                       help="Path to knn model file (e.g. knn.clf).")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
-  parser.add_argument('--recompute', help='Recompute detections.',
-                      action='store_true')
+  # parser.add_argument('--recompute', help='Recompute detections.',
+  #                     action='store_true')
   args = parser.parse_args()
 
   if not os.path.isdir(args.db):
@@ -174,11 +175,11 @@ def main():
     print('args.knn ({}) is not a valid file'.format(args.knn))
     exit()
 
-  if args.recompute:
-    answer = input("You are about to delete and recompute the content of args.db. Continue? y/n")
-    if answer != 'y':
-      print('Aborted.')
-      exit()
+  # if args.recompute:
+  #   answer = input("You are about to delete and recompute the content of args.db. Continue? y/n")
+  #   if answer != 'y':
+  #     print('Aborted.')
+  #     exit()
 
   if os.path.isdir(args.detections):
     print('Predicting faces in {}'.format(args.detections))

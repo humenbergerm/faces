@@ -33,22 +33,23 @@ def _runproc(cmd, fpath=None):
     proc.wait()
     err = proc.stderr.read()
     if err:
-        # See if it's a damaged EXIF directory. If so, fix it and re-try
-        if (err.startswith(b"Warning: Bad ExifIFD directory")
-                and fpath is not None):
-            fixcmd = ('exiftool -overwrite_original_in_place -all= '
-                    '-tagsfromfile @ -all:all -unsafe "{fpath}"'.format(
-                    **locals()))
-            try:
-                _runproc(fixcmd)
-            except RuntimeError:
-                # It will always raise a warning, so ignore it
-                pass
-            # Retry
-            return _runproc(cmd, fpath)
-        raise RuntimeError(err)
-    else:
-        return proc.stdout.read()
+        print(err)
+    #     # See if it's a damaged EXIF directory. If so, fix it and re-try
+    #     if (err.startswith(b"Warning: Bad ExifIFD directory")
+    #             and fpath is not None):
+    #         fixcmd = ('exiftool -overwrite_original_in_place -all= '
+    #                 '-tagsfromfile @ -all:all -unsafe "{fpath}"'.format(
+    #                 **locals()))
+    #         try:
+    #             _runproc(fixcmd)
+    #         except RuntimeError:
+    #             # It will always raise a warning, so ignore it
+    #             pass
+    #         # Retry
+    #         return _runproc(cmd, fpath)
+    #     raise RuntimeError(err)
+    # else:
+    return proc.stdout.read()
 
 
 # Test that the exiftool is installed
@@ -169,7 +170,7 @@ class ExifEditor(object):
         """
         kws = ["-iptc:keywords+={0}".format(kw.replace(" ", r"\ ")) for kw in kws]
         kwopt = " ".join(kws)
-        cmd = """exiftool {self._optExpr} {kwopt} "{self.photo}" """.format(**locals())
+        cmd = """exiftool -m {self._optExpr} {kwopt} "{self.photo}" """.format(**locals())
         _runproc(cmd, self.photo)
 
 
@@ -212,7 +213,7 @@ class ExifEditor(object):
         """Returns the value of the specified tag, or the default value
         if the tag does not exist.
         """
-        cmd = """exiftool -j -d "%Y:%m:%d %H:%M:%S" -{tag} "{self.photo}" """.format(**locals())
+        cmd = """exiftool -m -j -d "%Y:%m:%d %H:%M:%S" -{tag} "{self.photo}" """.format(**locals())
         out = _runproc(cmd, self.photo)
         if not isinstance(out, six.string_types):
             out = out.decode("utf-8")
@@ -223,7 +224,7 @@ class ExifEditor(object):
 
     def getTags(self, just_names=False, include_empty=True):
         """Returns a list of all the tags for the current image."""
-        cmd = """exiftool -j -d "%Y:%m:%d %H:%M:%S" "{self.photo}" """.format(**locals())
+        cmd = """exiftool -m -j -d "%Y:%m:%d %H:%M:%S" "{self.photo}" """.format(**locals())
         out = _runproc(cmd, self.photo)
         if not isinstance(out, six.string_types):
             out = out.decode("utf-8")
@@ -259,7 +260,7 @@ class ExifEditor(object):
         vallist = ['-{0}="{1}"'.format(tag,
             v.replace('"', '\\"') if isinstance(v, six.string_types) else v) for v in val]
         valstr = " ".join(vallist)
-        cmd = """exiftool {self._optExpr} {valstr} "{self.photo}" """.format(**locals())
+        cmd = """exiftool -m {self._optExpr} {valstr} "{self.photo}" """.format(**locals())
         try:
             out = _runproc(cmd, self.photo)
         except RuntimeError as e:
@@ -284,7 +285,7 @@ class ExifEditor(object):
                 val = val.replace('"', '\\"')
             vallist.append('-{0}="{1}"'.format(tag, val))
         valstr = " ".join(vallist)
-        cmd = """exiftool {self._optExpr} {valstr} "{self.photo}" """.format(**locals())
+        cmd = """exiftool -m {self._optExpr} {valstr} "{self.photo}" """.format(**locals())
         try:
             out = _runproc(cmd, self.photo)
         except RuntimeError as e:
@@ -346,7 +347,7 @@ class ExifEditor(object):
             dtstring = dttm.strftime("%Y:%m:%d %H:%M:%S")
         else:
             dtstring = self._formatDateTime(dttm)
-        cmd = """exiftool {self._optExpr} -{fld}='{dtstring}' "{self.photo}" """.format(**locals())
+        cmd = """exiftool -m {self._optExpr} -{fld}='{dtstring}' "{self.photo}" """.format(**locals())
         _runproc(cmd, self.photo)
 
 

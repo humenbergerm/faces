@@ -26,8 +26,6 @@ def detect_faces(args):
         utils.mkdir_p(output_path)
       detect_faces_in_folder(args, d, output_path)
 
-#todo: if no detections found, try with other detector
-#      try with n detectors and check if detections overlap
 def detect_faces_in_folder(args, folder, output_path):
     detections_path = os.path.join(output_path, "detections.bin")
     if os.path.isfile(detections_path):
