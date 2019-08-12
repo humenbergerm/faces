@@ -37,6 +37,9 @@ def show_class(args, svm_clf):
         classes = preds_per_person
     else:
         classes = [args.face]
+        if preds_per_person.get(args.face) == None:
+            print('{} not found'.format(classes))
+            exit(0)
 
     for cls in classes:
         face_locations, face_encodings = utils.initialize_face_data(preds_per_person, cls)
@@ -97,7 +100,7 @@ def show_class(args, svm_clf):
                     # add pred in new list
                     if preds_per_person.get(new_name) == None:
                         preds_per_person[new_name] = []
-                    utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
+                    utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
                     # delete pred in current list
                     face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))

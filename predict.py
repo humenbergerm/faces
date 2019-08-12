@@ -3,6 +3,7 @@ import pickle
 from PIL import Image
 import argparse
 from datetime import datetime
+import copy
 
 import utils
 
@@ -37,7 +38,12 @@ def predict_class(args, knn_clf):
   unknown_counter = 0
   known_counter = 0
   pos = 0
-  for name, (top, right, bottom, left) in predictions:
+  save = []
+  for i, (name, (top, right, bottom, left)) in enumerate(predictions):
+
+    while len(save) > 100:
+      save.pop(0)
+
     if (name == "unknown"):
       unknown_counter += 1
       pos += 1
@@ -47,11 +53,52 @@ def predict_class(args, knn_clf):
       tmp = preds_per_person[cls][pos]
       if preds_per_person.get(name) == None:
         preds_per_person[name] = []
+      # print(preds_per_person[name][-1])
       preds_per_person[name].append(((name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
       preds_per_person[cls].pop(pos)
       print('{} found'.format(name))
+      key = utils.show_prediction_labels_on_image(predictions, None, preds_per_person[name][-1][3], i,
+                                                  preds_per_person[name][-1][1], '')
+      if key == 99:  # key 'c'
+        new_name = utils.guided_input(preds_per_person)
+        if new_name != "":
+          save.append(copy.deepcopy(preds_per_person[name]))
+          # add pred in new list
+          if preds_per_person.get(new_name) == None:
+            preds_per_person[new_name] = []
+          # print(preds_per_person[name][-1])
+          # print(preds_per_person[new_name][-1])
+          utils.insert_element_preds_per_person(preds_per_person, name, -1, new_name, 1)
+          # print(preds_per_person[new_name][-1])
+          # delete pred in current list
+          face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, -1)
+          # print(preds_per_person[name][-1])
+          print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
+      elif key == 100:  # key 'd'
+          save.append(copy.deepcopy(preds_per_person[name]))
+          new_name = 'deleted'
+          # add pred in new list
+          if preds_per_person.get(new_name) == None:
+            preds_per_person[new_name] = []
+          utils.insert_element_preds_per_person(preds_per_person, name, -1, new_name)
+          # delete pred in current list
+          face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, -1)
+          print("face deleted")
+      elif key == 47:  # key '/'
+          save.append(copy.deepcopy(preds_per_person[name]))
+          tmp = preds_per_person[name][-1]
+          if tmp[3] == 0:
+            preds_per_person[name][-1] = tmp[0], tmp[1], tmp[2], 1, tmp[4]
+          elif tmp[3] == 1:
+            preds_per_person[name][-1] = tmp[0], tmp[1], tmp[2], 0, tmp[4]
+          print("face confirmed: {} ({})".format(tmp[0], len(preds_per_person[name])))
+      elif key == 27: # key 'esc'
+        utils.export_persons_to_csv(preds_per_person, args.db)
+        return 0
 
-  utils.export_persons_to_csv(preds_per_person, args.db)
+    # print('unknown: {}, known: {}'.format(unknown_counter, known_counter))
+
+  # utils.export_persons_to_csv(preds_per_person, args.db)
 
   print("predicted faces of class {}".format(cls))
   print("{} new face(s) found. They were moved to their class.".format(known_counter))
