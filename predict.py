@@ -81,6 +81,7 @@ def predict_class(args, knn_clf):
       unknown_counter += 1
       pos += 1
     else:
+      save = copy.deepcopy(preds_per_person)
       # move to new class
       known_counter += 1
       tmp = preds_per_person[cls][pos]
@@ -94,6 +95,7 @@ def predict_class(args, knn_clf):
       if args.confirm:
         key = confirm_face(preds_per_person, predictions, name, i, -1, args)
         if key == 27: # key 'esc'
+          preds_per_person = save
           utils.export_persons_to_csv(preds_per_person, args.db)
           return 0
 
@@ -180,6 +182,7 @@ def predict_faces(args, knn_clf, detections):
 
             if found == 0:
                 print('Found new face {}.'.format(name))
+                save = copy.deepcopy(preds_per_person)
                 counter = counter + 1
                 if len(preds_per_person[name]) == 0 or no_timestamp:
                     preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
@@ -197,6 +200,7 @@ def predict_faces(args, knn_clf, detections):
                 if args.confirm:
                   key = confirm_face(preds_per_person, predictions, name, id, ins, args)
                   if key == 27:  # key 'esc'
+                    preds_per_person = save
                     utils.export_persons_to_csv(preds_per_person, args.db)
                     return 0
             # else:
