@@ -490,3 +490,19 @@ def ignore_detections_of_file(dets, filepath):
     print('detections in {} will be ignored'.format(filepath))
   else:
     print('{} not found in detections'.format(filepath))
+
+def predict_face_svm(enc, svm):
+  preds = svm.predict_proba(enc.reshape(1, -1))[0]
+  sorted = np.argsort(-preds)
+
+  names = []
+  probs = []
+  print('\n')
+  for s in range(10):
+    ix = sorted[s]
+    names.append(svm.classes_[ix])
+    probs.append(preds[ix])
+    print('{}: name: {}, prob: {}'.format(s, names[s], probs[s]))
+
+  print('\n')
+  return names, probs

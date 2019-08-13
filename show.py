@@ -9,22 +9,6 @@ import subprocess
 
 import utils
 
-def predict_face_svm(enc, svm):
-    preds = svm.predict_proba(enc.reshape(1, -1))[0]
-    sorted = np.argsort(-preds)
-
-    names = []
-    probs = []
-    print('\n')
-    for s in range(10):
-        ix = sorted[s]
-        names.append(svm.classes_[ix])
-        probs.append(preds[ix])
-        print('{}: name: {}, prob: {}'.format(s, names[s], probs[s]))
-
-    print('\n')
-    return names, probs
-
 def show_class(args, svm_clf):
 
     preds_per_person = utils.load_faces_from_csv(args.db)
@@ -75,7 +59,7 @@ def show_class(args, svm_clf):
             image_path = preds_per_person[cls][ix][1]
             print(preds_per_person[cls][ix][1])
 
-            names, probs = predict_face_svm(face_encodings[ix], svm_clf)
+            names, probs = utils.predict_face_svm(face_encodings[ix], svm_clf)
             name = names[0]
 
             #nr_conf, nr_ignored, nr_not_ignored = utils.count_preds_status(preds_per_person[cls])
