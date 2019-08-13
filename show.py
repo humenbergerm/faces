@@ -69,7 +69,7 @@ def show_class(args, svm_clf):
                     print('no more faces of class {} found in {}'.format(cls, args.mask_folder))
                     break
 
-            while len(save) > 100:
+            while len(save) > 10:
                 save.pop(0)
 
             image_path = preds_per_person[cls][ix][1]
@@ -96,7 +96,7 @@ def show_class(args, svm_clf):
             elif key == 99: # key 'c'
                 new_name = utils.guided_input(preds_per_person)
                 if new_name != "":
-                    save.append(copy.deepcopy(preds_per_person[cls]))
+                    save.append(copy.deepcopy(preds_per_person))
                     # add pred in new list
                     if preds_per_person.get(new_name) == None:
                         preds_per_person[new_name] = []
@@ -105,7 +105,7 @@ def show_class(args, svm_clf):
                     face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
             elif key == 117: # key 'u'
-                save.append(copy.deepcopy(preds_per_person[cls]))
+                save.append(copy.deepcopy(preds_per_person))
                 new_name = 'unknown'
                 # add pred in new list
                 if preds_per_person.get(new_name) == None:
@@ -115,7 +115,7 @@ def show_class(args, svm_clf):
                 face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                 print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
             elif key == 47:  # key '/'
-                save.append(copy.deepcopy(preds_per_person[cls]))
+                save.append(copy.deepcopy(preds_per_person))
                 tmp = preds_per_person[cls][ix]
                 if tmp[3] == 0:
                     preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 1, tmp[4]
@@ -128,7 +128,7 @@ def show_class(args, svm_clf):
                 while (preds_per_person[cls][ix][3] != 0 and ix < len(face_locations) - 1):
                     ix += 1
             elif key >= 48 and key <= 57: # keys '0' - '9'
-                save.append(copy.deepcopy(preds_per_person[cls]))
+                save.append(copy.deepcopy(preds_per_person))
                 new_name = names[key-48]
                 utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
                 # delete pred in current list
@@ -136,7 +136,7 @@ def show_class(args, svm_clf):
                 print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
             elif key == 100: # key 'd'
                 if 1:
-                  save.append(copy.deepcopy(preds_per_person[cls]))
+                  save.append(copy.deepcopy(preds_per_person))
                   new_name = 'deleted'
                   # add pred in new list
                   if preds_per_person.get(new_name) == None:
@@ -145,7 +145,7 @@ def show_class(args, svm_clf):
                   # delete pred in current list
                   face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                 else:
-                  save.append(copy.deepcopy(preds_per_person[cls]))
+                  save.append(copy.deepcopy(preds_per_person))
                   # delete face
                   face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                 print("face deleted")
@@ -158,7 +158,7 @@ def show_class(args, svm_clf):
                 # cv2.waitKey(1)
             elif key == 97: # key 'a'
                 # delete all faces of this class in the current image
-                save.append(copy.deepcopy(preds_per_person[cls]))
+                save.append(copy.deepcopy(preds_per_person))
                 i = 0
                 while i < len(preds_per_person[cls]):
                     compare_path = preds_per_person[cls][i][1]
@@ -174,7 +174,7 @@ def show_class(args, svm_clf):
                     print('detections not deleted from detections.bin')
             elif key == 105: # key 'i'
                 # delete all faces of this class in the current image AND set it to be ignored in the future (also for detection)
-                save.append(copy.deepcopy(preds_per_person[cls]))
+                save.append(copy.deepcopy(preds_per_person))
                 i = 0
                 while i < len(preds_per_person[cls]):
                     compare_path = preds_per_person[cls][i][1]
@@ -190,7 +190,7 @@ def show_class(args, svm_clf):
                     print('detections not deleted from detections.bin')
             elif key == 98: #key 'b'
                 if len(save) > 0:
-                    preds_per_person[cls] = copy.deepcopy(save.pop())
+                    preds_per_person = copy.deepcopy(save.pop())
                     face_locations, face_encodings = utils.initialize_face_data(preds_per_person, cls)
                     print("undone last action")
             elif key == 115: #key 's'
