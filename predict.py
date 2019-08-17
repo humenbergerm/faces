@@ -8,12 +8,12 @@ import subprocess
 
 import utils
 
-def confirm_face(preds_per_person, predictions, name, i, ins, args, svm_clf):
+def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_clf):
 
-  names, probs = utils.predict_face_svm(preds_per_person[name][ins][2], svm_clf)
+  # names, probs = utils.predict_face_svm(preds_per_person[name][ins][2], svm_clf)
 
   key = utils.show_prediction_labels_on_image(predictions, None, preds_per_person[name][ins][3], i,
-                                              preds_per_person[name][ins][1], '')
+                                              preds_per_person[name][ins][1], '', force_name=name)
 
   if key == 99:  # key 'c'
     new_name = utils.guided_input(preds_per_person)
@@ -83,47 +83,56 @@ def predict_class(args, knn_clf, svm_clf):
 
   # assumption: predictions has the same length like the class members
   unknown_counter = 0
+  new_counter = 0
   known_counter = 0
   pos = 0
 
   for i, (name, (top, right, bottom, left)) in enumerate(predictions):
 
-    if (name == "unknown"):
-      unknown_counter += 1
-      pos += 1
-    else:
+    names, probs = utils.predict_face_svm(face_encodings[i], svm_clf, print_top=True)
+    if name == "unknown":
+      if probs[0] >= 0.95:
+        name = names[0]
+        print('{} > 0.95'.format(name))
+      else:
+        unknown_counter += 1
+        pos += 1
+
+    if name != cls:
       save = copy.deepcopy(preds_per_person)
       # move to new class
-      known_counter += 1
+      new_counter += 1
       tmp = preds_per_person[cls][pos]
       if preds_per_person.get(name) == None:
         preds_per_person[name] = []
       # print(preds_per_person[name][-1])
       preds_per_person[name].append(((name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
-      preds_per_person[cls].pop(pos)
+      preds_per_person[cls].pop(pos) # this is why pos is needed
       print('{} found'.format(name))
 
       if args.confirm:
         repeat = True
         while repeat == True:
-          key = confirm_face(preds_per_person, predictions, name, i, -1, args, svm_clf)
+          key = confirm_face(preds_per_person, predictions, name, i, -1, names, args, svm_clf)
           if key == 27: # key 'esc'
             preds_per_person = save
             utils.export_persons_to_csv(preds_per_person, args.db)
             return 0
           elif key == 116:  # key 't'
-            image_path = preds_per_person[name][ins][1]
+            image_path = preds_per_person[name][-1][1]
             subprocess.call(["open", "-R", image_path])
           else:
             repeat = False
-
-    # print('unknown: {}, known: {}'.format(unknown_counter, known_counter))
+    else:
+      known_counter += 1
+      pos += 1
 
   utils.export_persons_to_csv(preds_per_person, args.db)
 
   print("predicted faces of class {}".format(cls))
-  print("{} new face(s) found. They were moved to their class.".format(known_counter))
+  print("{} new face(s) found. They were moved to their class.".format(new_counter))
   print("{} face(s) unknown. They are not changed!".format(unknown_counter))
+  print("{} face(s) unchanged.".format(known_counter))
 
 def predict_image(descriptors, locations, knn_clf, distance_threshold=0.3):
 
@@ -199,26 +208,32 @@ def predict_faces(args, knn_clf, svm_clf, detections):
                 break
 
             if found == 0:
+                names, probs = utils.predict_face_svm(descriptors[id], svm_clf, print_top=True)
+                if name == 'unknown':
+                  if probs[0] >= 0.95:
+                    name = names[0]
+                    print('{} > 0.95'.format(name))
+
                 print('Found new face {}.'.format(name))
                 save = copy.deepcopy(preds_per_person)
                 counter = counter + 1
                 if len(preds_per_person[name]) == 0 or no_timestamp:
-                    preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
+                    preds_per_person[name].append([(name, predictions[id][1]), image_file, descriptors[id], 0, timeStamp])
                     ins = -1
                 else:
                     inserted = False
                     for ins, pr in enumerate(preds_per_person[name]):
                         if timeStamp <= pr[4]:
-                            preds_per_person[name].insert(ins, [predictions[id], image_file, descriptors[id], 0, timeStamp])
+                            preds_per_person[name].insert(ins, [(name, predictions[id][1]), image_file, descriptors[id], 0, timeStamp])
                             inserted = True
                             break
                     if not inserted:
-                        preds_per_person[name].append([predictions[id], image_file, descriptors[id], 0, timeStamp])
+                        preds_per_person[name].append([(name, predictions[id][1]), image_file, descriptors[id], 0, timeStamp])
 
                 if args.confirm:
                   repeat = True
                   while repeat == True:
-                    key = confirm_face(preds_per_person, predictions, name, id, ins, args, svm_clf)
+                    key = confirm_face(preds_per_person, predictions, name, id, ins, names, args, svm_clf)
                     if key == 27:  # key 'esc'
                       preds_per_person = save
                       utils.export_persons_to_csv(preds_per_person, args.db)

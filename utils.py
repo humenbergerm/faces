@@ -150,8 +150,11 @@ def load_faces_from_csv(preds_per_person_path):
         else:
           found_face = descs[i - 1]
         if len(found_face) != 0:
-          preds_per_person[name].append(
-            ((name, face_loc[1]), found_face[1], found_face[2], found_face[3], found_face[4]))
+          if os.path.isfile(found_face[1]):
+            preds_per_person[name].append(
+              ((name, face_loc[1]), found_face[1], found_face[2], found_face[3], found_face[4]))
+          else:
+            print('file {} does not exist'.format(found_face[1]))
         else:
           print('{} not found'.format(img_name))
 
@@ -341,7 +344,7 @@ def show_detections_on_image(locations, img_path):
   return cv2.waitKey(0)
 
 # if index is -1: use all elements of predictions, if not, only use one (given by the index)
-def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, index=-1, img_path=None, text=None):
+def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, index=-1, img_path=None, text=None, force_name=''):
     if img_path != None:
         opencvImage = cv2.imread(img_path)
     else:
@@ -353,6 +356,8 @@ def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, inde
 
     if index != -1:
         name, (top, right, bottom, left) = predictions[index]
+        if force_name != '':
+          name = force_name
         top = int(top * ws)
         right = int(right * ws)
         bottom = int(bottom * ws)
@@ -491,18 +496,21 @@ def ignore_detections_of_file(dets, filepath):
   else:
     print('{} not found in detections'.format(filepath))
 
-def predict_face_svm(enc, svm):
+def predict_face_svm(enc, svm, print_top=True):
   preds = svm.predict_proba(enc.reshape(1, -1))[0]
   sorted = np.argsort(-preds)
 
   names = []
   probs = []
-  print('\n')
+  if print_top:
+    print('\n')
   for s in range(10):
     ix = sorted[s]
     names.append(svm.classes_[ix])
     probs.append(preds[ix])
-    print('{}: name: {}, prob: {}'.format(s, names[s], probs[s]))
+    if print_top:
+      print('{}: name: {}, prob: {}'.format(s, names[s], probs[s]))
 
-  print('\n')
+  if print_top:
+    print('\n')
   return names, probs
