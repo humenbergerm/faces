@@ -89,7 +89,7 @@ def predict_class(args, knn_clf, svm_clf):
 
   for i, (name, (top, right, bottom, left)) in enumerate(predictions):
 
-    names, probs = utils.predict_face_svm(face_encodings[i], svm_clf, print_top=True)
+    names, probs = utils.predict_face_svm(preds_per_person[cls][pos][2], svm_clf, print_top=True)
     if name == "unknown":
       if probs[0] >= 0.95:
         name = names[0]
@@ -125,7 +125,7 @@ def predict_class(args, knn_clf, svm_clf):
             repeat = False
     else:
       known_counter += 1
-      pos += 1
+      # pos += 1
 
   utils.export_persons_to_csv(preds_per_person, args.db)
 
