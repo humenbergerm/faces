@@ -51,6 +51,12 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
     # delete pred in current list
     face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, ins)
     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
+  elif key == 116:  # key 't'
+    image_path = preds_per_person[name][-1][1]
+    subprocess.call(["open", "-R", image_path])
+  elif key == 115:  # key 's'
+    utils.export_persons_to_csv(preds_per_person, args.db)
+    print('saved')
 
   return key
 
@@ -118,9 +124,6 @@ def predict_class(args, knn_clf, svm_clf):
             preds_per_person = save
             utils.export_persons_to_csv(preds_per_person, args.db)
             return 0
-          elif key == 116:  # key 't'
-            image_path = preds_per_person[name][-1][1]
-            subprocess.call(["open", "-R", image_path])
           else:
             repeat = False
     else:
@@ -238,9 +241,6 @@ def predict_faces(args, knn_clf, svm_clf, detections):
                       preds_per_person = save
                       utils.export_persons_to_csv(preds_per_person, args.db)
                       return 0
-                    elif key == 116:  # key 't'
-                      image_path = preds_per_person[name][ins][1]
-                      subprocess.call(["open", "-R", image_path])
                     else:
                       repeat = False
             # else:
