@@ -88,6 +88,12 @@ def show_class(args, svm_clf):
                     # delete pred in current list
                     face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, cls, ix)
                     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
+            elif key == 109: # key 'm'
+                new_name = utils.guided_input(preds_per_person)
+                if new_name != "":
+                    save.append(copy.deepcopy(preds_per_person))
+                    face_locations, face_encodings = utils.move_class(preds_per_person, cls, new_name)
+                    print("class moved: {} -> {}".format(cls, new_name))
             elif key == 117: # key 'u'
                 save.append(copy.deepcopy(preds_per_person))
                 new_name = 'unknown'

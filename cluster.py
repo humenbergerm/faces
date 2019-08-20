@@ -7,11 +7,50 @@ import cv2
 
 import utils
 
+def cluster_faces_in_class(args):
+  preds_per_person = utils.load_faces_from_csv(args.db)
+  if preds_per_person.get(args.detections) == None:
+    print('Class {} not found.'.format(args.detections))
+    return
+
+  descriptors = []
+  for i,p in enumerate(preds_per_person[args.detections]):
+    descriptors.append(dlib.vector(p[2]))
+
+  # cluster the faces
+  print('clustering...')
+  labels = dlib.chinese_whispers_clustering(descriptors, args.threshold)
+  num_classes = len(set(labels))
+  print("Number of clusters: {}".format(num_classes))
+
+  to_delete = []
+  for j in range(0, num_classes):
+    class_length = len([label for label in labels if label == j])
+    if class_length >= args.min_members:
+      indices = []
+      for i, label in enumerate(labels):
+        if label == j:
+          indices.append(i)
+
+      cluster_name = "group_" + str(j)
+
+      # Move the clustered faces to individual groups
+      print('Moving the clustered faces to the database.')
+      to_delete += indices
+      for i, index in enumerate(indices):
+        utils.insert_element_preds_per_person(preds_per_person, args.detections, index, cluster_name)
+
+  # to_delete = sorted(to_delete)
+  # to_delete.reverse()
+  # for i in to_delete:
+  #   utils.delete_element_preds_per_person(preds_per_person, args.detections, i)
+
+  utils.export_persons_to_csv(preds_per_person, args.db)
+
 def cluster_faces(args):
     cluster_root_path = args.outdir
 
     detections_path = args.detections
-    # detections = pickle.load(open(detections_path, "rb"))
     detections, det_file_map = utils.load_detections_as_single_dict(detections_path)
 
     descriptors = []
@@ -34,7 +73,7 @@ def cluster_faces(args):
     counter_clustered = 0
     for j in range(0, num_classes):
         class_length = len([label for label in labels if label == j])
-        if class_length >= 2:
+        if class_length >= args.min_members:
             indices = []
             for i, label in enumerate(labels):
                 if label == j:
@@ -96,20 +135,28 @@ def main():
                       help="Path to folder with clustered faces.")
   parser.add_argument('--threshold', type=float, default=0.45,
                       help="Threshold for clustering (default=0.45). A larger value decreases the number of resulting clusters.")
+  parser.add_argument('--min_members', type=float, default=2,
+                      help="Minimum number of members for a cluster to be accepted.")
+  parser.add_argument('--db', type=str, required=False,
+                      help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--recompute', help='Recompute detections.',
                       action='store_true')
   args = parser.parse_args()
 
-  if not os.path.isdir(args.detections):
-    print('args.detections needs to be a valid directory')
-    exit()
+  if os.path.isdir(args.detections):
+    if not os.path.isdir(args.outdir):
+      utils.mkdir_p(args.outdir)
 
-  if not os.path.isdir(args.outdir):
-    utils.mkdir_p(args.outdir)
+    print('Clustering faces in {}'.format(args.detections))
+    cluster_faces(args)
+    utils.sort_folders_by_nr_of_images(args.outdir)
+  else:
+    if not os.path.isdir(args.db):
+      print('{} is no valid directory.'.format(args.db))
+      exit()
+    print('Clustering faces in class {}'.format(args.detections))
+    cluster_faces_in_class(args)
 
-  print('Clustering faces in {}'.format(args.detections))
-  cluster_faces(args)
-  utils.sort_folders_by_nr_of_images(args.outdir)
   print('Done.')
 
 if __name__ == "__main__":

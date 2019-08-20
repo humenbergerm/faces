@@ -296,6 +296,24 @@ def delete_element_preds_per_person(preds_per_person, cls, ix):
 
   return face_locations, face_encodings
 
+def move_class(preds_per_person, cls, new_cls):
+  accept = input('All members from class {} will be moved to class {}. (y/n)?'.format(cls, new_cls))
+  if accept == 'y':
+    for i, p in enumerate(preds_per_person[cls]):
+      insert_element_preds_per_person(preds_per_person, cls, i, new_cls, 1)
+
+    preds_per_person[cls] = []
+
+    return [], []
+  else:
+    face_locations = []
+    face_encodings = []
+    for p in preds_per_person[cls]:
+      face_locations.append(p[0][1])
+      face_encodings.append(p[2])
+
+    return face_locations, face_encodings
+
 def insert_element_preds_per_person(preds_per_person, cls, ix, new_cls, conf=-1):
   tmp = preds_per_person[cls][ix]
   if conf == -1:
