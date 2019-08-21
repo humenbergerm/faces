@@ -57,7 +57,16 @@ def export_persons_to_csv(preds_per_person, preds_per_person_path):
     print('nothing to export, preds_per_person is empty')
     return
   for p in preds_per_person:
-    export_face_to_csv(preds_per_person_path, preds_per_person, p)
+    if len(preds_per_person[p]) == 0:
+      print('No faces found in {}. Files will be deleted.'.format(p))
+      bin_file = os.path.join(preds_per_person_path, p + '.bin')
+      if os.path.isfile(bin_file):
+        os.remove(bin_file)
+      csv_file = os.path.join(preds_per_person_path, p + '.csv')
+      if os.path.isfile(csv_file):
+        os.remove(csv_file)
+    else:
+      export_face_to_csv(preds_per_person_path, preds_per_person, p)
 
 def export_face_to_csv(preds_per_person_path, preds_per_person, face):
 
@@ -117,17 +126,16 @@ def load_faces_from_csv(preds_per_person_path):
     name = os.path.splitext(os.path.basename(f))[0]
     print('loading {}'.format(name))
     descs = pickle.load(open(os.path.join(preds_per_person_path, name + '.bin'), "rb"))
-    for i in bin_files:
-      filename = os.path.splitext(os.path.basename(i))[0]
-      # check if multiple .bin files should be combined
-      # bin files can be combined if the 'other' files are exactly one character longer, e.g.: martin.bin and martin1.bin
-      if name in filename and len(name) + 1 == len(filename):
-        accept = input('Add ' + i + ' to ' + name + ' (y/n)?')
-        if accept == 'y':
-          tmp = pickle.load(open(i, "rb"))
-          descs += tmp
-    # bin_path = os.path.join(preds_per_person_path, name + '.bin')
-    # descs = pickle.load(open(bin_path, "rb"))
+    if 0:
+      for i in bin_files:
+        filename = os.path.splitext(os.path.basename(i))[0]
+        # check if multiple .bin files should be combined
+        # bin files can be combined if the 'other' files are exactly one character longer, e.g.: martin.bin and martin1.bin
+        if name in filename and len(name) + 1 == len(filename):
+          accept = input('Add ' + i + ' to ' + name + ' (y/n)?')
+          if accept == 'y':
+            tmp = pickle.load(open(i, "rb"))
+            descs += tmp
     with open(f, 'r') as csvfile:
       filereader = csv.reader(csvfile, delimiter=';')
       preds_per_person[name] = []

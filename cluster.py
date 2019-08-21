@@ -4,6 +4,7 @@ import pickle
 import argparse
 import dlib
 import cv2
+import numpy as np
 
 import utils
 
@@ -23,7 +24,8 @@ def cluster_faces_in_class(args):
   num_classes = len(set(labels))
   print("Number of clusters: {}".format(num_classes))
 
-  to_delete = []
+  all_indices = []
+  all_lengths = []
   for j in range(0, num_classes):
     class_length = len([label for label in labels if label == j])
     if class_length >= args.min_members:
@@ -31,19 +33,25 @@ def cluster_faces_in_class(args):
       for i, label in enumerate(labels):
         if label == j:
           indices.append(i)
+      all_indices.append(indices)
+      all_lengths.append(class_length)
 
-      cluster_name = "group_" + str(j)
+  sort_index = np.argsort(np.array(all_lengths))[::-1]
 
-      # Move the clustered faces to individual groups
-      print('Moving the clustered faces to the database.')
-      to_delete += indices
-      for i, index in enumerate(indices):
-        utils.insert_element_preds_per_person(preds_per_person, args.detections, index, cluster_name)
+  # Move the clustered faces to individual groups
+  print('Moving the clustered faces to the database.')
+  to_delete = []
+  for i in sort_index[:10]:
+    cluster_name = "group_" + str(i)
 
-  # to_delete = sorted(to_delete)
-  # to_delete.reverse()
-  # for i in to_delete:
-  #   utils.delete_element_preds_per_person(preds_per_person, args.detections, i)
+    to_delete += all_indices[i]
+    for index in all_indices[i]:
+      utils.insert_element_preds_per_person(preds_per_person, args.detections, index, cluster_name)
+
+  to_delete = sorted(to_delete)
+  to_delete.reverse()
+  for i in to_delete:
+    utils.delete_element_preds_per_person(preds_per_person, args.detections, i)
 
   utils.export_persons_to_csv(preds_per_person, args.db)
 
