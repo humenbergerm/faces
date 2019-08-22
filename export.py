@@ -131,10 +131,25 @@ def save_to_exif(args):
     else:
       print('no change in exif found')
 
+def export_face_crops(args):
+  preds_per_person = utils.load_faces_from_csv(args.db)
+  if len(preds_per_person) == 0:
+    print('no faces loaded')
+    exit()
+
+  for p in preds_per_person:
+    face_dir = os.path.join(args.outdir, p)
+    if not os.path.isdir(face_dir):
+      utils.mkdir_p(face_dir)
+    print('Writing {}'.format(p))
+    for i,f in enumerate(preds_per_person[p]):
+      face_path = os.path.join(face_dir, '{}_{:06d}.jpg'.format(p, i))
+      utils.save_face_crop(face_path, f[1], f[0][1])
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--method', type=str, required=True,
-                      help="Method of export: 0 ... album, 1 ... exif")
+                      help="Method of export: 0 ... album, 1 ... exif, 2 ... face crops to folder")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--outdir', type=str,
@@ -172,7 +187,16 @@ def main():
     # export_to_json(args)
     print('Saving all faces to the images exif data.')
     save_to_exif(args)
-    print('Done.')
+  elif args.method == '2':
+    if args.outdir == None:
+      print('Provide output directory.')
+      exit()
+    if not os.path.isdir(args.outdir):
+      utils.mkdir_p(args.outdir)
+    print('Exporting all face crops to {}.'.format(args.outdir))
+    export_face_crops(args)
+
+  print('Done.')
 
 if __name__ == "__main__":
   main()

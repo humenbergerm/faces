@@ -57,6 +57,15 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
   elif key == 115:  # key 's'
     utils.export_persons_to_csv(preds_per_person, args.db)
     print('saved')
+  elif key == 117:  # key 'u'
+    new_name = 'unknown'
+    # add pred in new list
+    if preds_per_person.get(new_name) == None:
+      preds_per_person[new_name] = []
+    utils.insert_element_preds_per_person(preds_per_person, name, ins, new_name)
+    # delete pred in current list
+    face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, ins)
+    print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
 
   return key
 

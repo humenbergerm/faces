@@ -540,3 +540,17 @@ def predict_face_svm(enc, svm, print_top=True):
   if print_top:
     print('\n')
   return names, probs
+
+def save_face_crop(face_path, img_path, loc):
+    img = cv2.imread(img_path)
+
+    x = loc[3]
+    y = loc[0]
+    w = loc[1] - x
+    h = loc[2] - y
+    if is_valid_roi(x, y, w, h, img.shape):
+      roi = img[y:y + h, x:x + w]
+      cv2.imwrite(face_path, roi)
+      return True
+
+    return False
