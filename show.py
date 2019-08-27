@@ -13,6 +13,8 @@ def show_class(args, svm_clf):
 
     preds_per_person = utils.load_faces_from_csv(args.db)
 
+    faces_files = utils.get_faces_in_files(preds_per_person)
+
     dets = {}
     if args.dets != None:
         dets, det_file_map = utils.load_detections_as_single_dict(args.dets)
@@ -62,6 +64,8 @@ def show_class(args, svm_clf):
             names, probs = utils.predict_face_svm(face_encodings[ix], svm_clf)
             name = names[0]
 
+            utils.show_detections_on_image(faces_files[image_path], image_path, waitkey=False)
+
             #nr_conf, nr_ignored, nr_not_ignored = utils.count_preds_status(preds_per_person[cls])
             #str_count = 'total: ' + str(len(preds_per_person[cls])) + ', confirmed: ' + str(nr_conf) + ', ignored: ' + str(nr_ignored)
             str_count = str(ix+1) + ' / ' + str(len(preds_per_person[cls]))
@@ -75,8 +79,8 @@ def show_class(args, svm_clf):
                 ix -= 1
             elif key == 114: # key 'r'
                 ix = random.randint(0, len(face_locations))
-                while (preds_per_person[cls][ix][3] != 0):
-                    ix = random.randint(0, len(face_locations)-1)
+                # while (preds_per_person[cls][ix][3] != 0):
+                ix = random.randint(0, len(face_locations)-1)
             elif key == 99: # key 'c'
                 new_name = utils.guided_input(preds_per_person)
                 if new_name != "":

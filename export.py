@@ -1,6 +1,7 @@
 import os.path
 import argparse
 import json
+import dlib
 #import subprocess
 
 import utils
@@ -137,6 +138,8 @@ def export_face_crops(args):
     print('no faces loaded')
     exit()
 
+  sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
+
   for p in preds_per_person:
     face_dir = os.path.join(args.outdir, p)
     if not os.path.isdir(face_dir):
@@ -144,7 +147,10 @@ def export_face_crops(args):
     print('Writing {}'.format(p))
     for i,f in enumerate(preds_per_person[p]):
       face_path = os.path.join(face_dir, '{}_{:06d}.jpg'.format(p, i))
-      utils.save_face_crop(face_path, f[1], f[0][1])
+      if 0:
+        utils.save_face_crop(face_path, f[1], f[0][1])
+      else:
+        utils.save_face_crop_aligned(sp, face_path, f[1], f[0][1])
 
 def main():
   parser = argparse.ArgumentParser()

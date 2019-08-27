@@ -70,7 +70,7 @@ def export_persons_to_csv(preds_per_person, preds_per_person_path):
 
 def export_face_to_csv(preds_per_person_path, preds_per_person, face):
 
-  print('exporting {}'.format(face))
+  print('exporting {} ({})'.format(face, len(preds_per_person[face])))
   # save everything in one pickle file
   pkl_path = os.path.join(preds_per_person_path, face + '.bin')
   with open(pkl_path, "wb") as fp:
@@ -126,7 +126,7 @@ def load_faces_from_csv(preds_per_person_path):
     name = os.path.splitext(os.path.basename(f))[0]
     print('loading {}'.format(name))
     descs = pickle.load(open(os.path.join(preds_per_person_path, name + '.bin'), "rb"))
-    if 0:
+    if 1:
       for i in bin_files:
         filename = os.path.splitext(os.path.basename(i))[0]
         # check if multiple .bin files should be combined
@@ -235,7 +235,7 @@ def is_valid_roi(x, y, w, h, img_shape):
     return True
   return False
 
-def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=False, img_height=150):
+def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=False):
   img = dlib.load_rgb_image(img_path)
 
   if use_entire_image:
@@ -252,6 +252,11 @@ def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=Fals
   for k, d in enumerate(dets):
     # get the landmarks/parts for the face in box d.
     shape = sp(img, d)
+
+    # face alignment is done automatically by dlib as pre-processing step in compute_face_descriptor
+    # aligned_face = dlib.get_face_chip(img, shape)
+    # cv2.imshow('aligned', aligned_face)
+    # cv2.waitKey(0)
 
     # locations: list of tuples (t,r,b,l)
     # descriptors: list of float64 np arrays
@@ -351,7 +356,7 @@ def resizeCV(img, w):
 
   return cv2.resize(img, (int(width), int(height)))
 
-def show_detections_on_image(locations, img_path):
+def show_detections_on_image(locations, img_path, waitkey=True):
   opencvImage = cv2.imread(img_path)
 
   height, width = opencvImage.shape[:2]
@@ -366,8 +371,11 @@ def show_detections_on_image(locations, img_path):
     left = int(left * ws)
     cv2.rectangle(opencvImage, (left, top), (right, bottom), (0, 255, 0), 1)
 
-  cv2.imshow("detections", opencvImage)
-  return cv2.waitKey(0)
+  cv2.imshow("faces", opencvImage)
+  if waitkey:
+    return cv2.waitKey(0)
+  else:
+    return cv2.waitKey(1)
 
 # if index is -1: use all elements of predictions, if not, only use one (given by the index)
 def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, index=-1, img_path=None, text=None, force_name=''):
@@ -554,3 +562,21 @@ def save_face_crop(face_path, img_path, loc):
       return True
 
     return False
+
+def save_face_crop_aligned(sp, face_path, img_path, loc):
+  img = cv2.imread(img_path)
+  # loc = (d.top(), d.right(), d.bottom(), d.left())
+  d = dlib.rectangle(loc[3], loc[0], loc[1], loc[2])
+  shape = sp(img, d)
+
+  aligned_face = dlib.get_face_chip(img, shape)
+  cv2.imwrite(face_path, aligned_face)
+
+def get_faces_in_files(preds_per_person):
+  faces_files = {}
+  for p in preds_per_person:
+    for f in preds_per_person[p]:
+      if faces_files.get(f[1]) == None:
+        faces_files[f[1]] = []
+      faces_files[f[1]].append(f[0][1])
+  return faces_files

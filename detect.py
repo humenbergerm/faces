@@ -26,6 +26,17 @@ def detect_faces(args):
         utils.mkdir_p(output_path)
       detect_faces_in_folder(args, d, output_path)
 
+def face_intersect(p1, p2):
+    # two faces (p1,p2) intersect only if the intersection area is larger than half of p1's size
+
+    if not p1.intersects(p2):
+      return False
+    else:
+      if p1.intersection(p2).area < 0.5 * p1.area:
+        return False
+      else:
+        return True
+
 def detect_faces_in_folder(args, folder, output_path):
     detections_path = os.path.join(output_path, "detections.bin")
     if os.path.isfile(detections_path):
@@ -77,6 +88,13 @@ def detect_faces_in_folder(args, folder, output_path):
             p2 = Polygon([(l1[3], l1[0]), (l1[1], l1[0]), (l1[1], l1[2]), (l1[3], l1[2])])
             if p1.intersects(p2):
               intersect = True
+            # if p1.area > p2.area:
+            #   # remove l1,d1 from locs,decs
+            #   locs.remove(l1)
+            #   decs.remove(d1)
+            #   # add l,d to locs,decs
+            #   locs.append(l)
+            #   descs.append(d)
           if not intersect:
             locs.append(l)
             descs.append(d)
