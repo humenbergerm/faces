@@ -341,7 +341,7 @@ def resizeCV(img, w):
 
   return cv2.resize(img, (int(width), int(height)))
 
-def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_file_map):
+def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_file_map, faces_files):
   if key == 99:  # key 'c'
     new_name = guided_input(preds_per_person)
     if new_name != "":
@@ -402,15 +402,11 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_fi
   elif key == 116:  # key 't'
     subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
   elif key == 97:  # key 'a'
-    # delete all faces of this class in the current image
+    # delete all faces in the current image
     save.append(copy.deepcopy(preds_per_person))
-    i = 0
-    while i < len(preds_per_person[cls]):
-      compare_path = preds_per_person[cls][i][1]
-      if compare_path == preds_per_person[cls][ix][1]:
-        delete_element_preds_per_person(preds_per_person, cls, i)
-      else:
-        i += 1
+    for f in faces_files[preds_per_person[cls][ix][1]]:
+      del_cls, del_i = f
+      delete_element_preds_per_person(preds_per_person, del_cls, del_i)
     # delete detections as well
     if len(dets) != 0:
       delete_detections_of_file(dets, preds_per_person[cls][ix][1])
@@ -418,15 +414,11 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_fi
     else:
       print('detections not deleted from detections.bin')
   elif key == 105:  # key 'i'
-    # delete all faces of this class in the current image AND set it to be ignored in the future (also for detection)
+    # delete all faces in the current image AND set it to be ignored in the future (also for detection)
     save.append(copy.deepcopy(preds_per_person))
-    i = 0
-    while i < len(preds_per_person[cls]):
-      compare_path = preds_per_person[cls][i][1]
-      if compare_path == preds_per_person[cls][ix][1]:
-        delete_element_preds_per_person(preds_per_person, cls, i)
-      else:
-        i += 1
+    for f in faces_files[preds_per_person[cls][ix][1]]:
+      del_cls, del_i = f
+      delete_element_preds_per_person(preds_per_person, del_cls, del_i)
     # ignore detections in the future
     if len(dets) != 0:
       ignore_detections_of_file(dets, preds_per_person[cls][ix][1])
@@ -499,15 +491,17 @@ def click(event, x, y, flags, params):
       cv2.imshow("faces", image)
       cv2.waitKey(1)
       new_name = guided_input(preds_per_person)
-      new_loc = get_rect_from_pts(refPt, ws) # order in preds_per_person: (top(), right(), bottom(), left())
-      d = dlib.rectangle(new_loc[3], new_loc[0], new_loc[1], new_loc[2])
-      opencvImage = cv2.imread(preds_per_person[main_face][main_idx][1])
-      shape = sp(opencvImage, d)
-      face_descriptor = facerec.compute_face_descriptor(opencvImage, shape)
-      new_desc = np.array(face_descriptor)
-      if preds_per_person.get(new_name) == None:
-        preds_per_person[new_name] = []
-      preds_per_person[new_name].append(((new_name, new_loc), preds_per_person[main_face][main_idx][1], new_desc, 1, preds_per_person[main_face][main_idx][4]))
+      if new_name != "":
+        new_loc = get_rect_from_pts(refPt, ws) # order in preds_per_person: (top(), right(), bottom(), left())
+        d = dlib.rectangle(new_loc[3], new_loc[0], new_loc[1], new_loc[2])
+        opencvImage = cv2.imread(preds_per_person[main_face][main_idx][1])
+        shape = sp(opencvImage, d)
+        face_descriptor = facerec.compute_face_descriptor(opencvImage, shape)
+        new_desc = np.array(face_descriptor)
+        if preds_per_person.get(new_name) == None:
+          preds_per_person[new_name] = []
+        preds_per_person[new_name].append(((new_name, new_loc), preds_per_person[main_face][main_idx][1], new_desc, 1, preds_per_person[main_face][main_idx][4]))
+        print('New face {} added.'.format(new_name))
     refPt = []
 
   cv2.imshow("faces", image)

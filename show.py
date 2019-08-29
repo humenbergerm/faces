@@ -13,8 +13,6 @@ def show_class(args, svm_clf):
 
     preds_per_person = utils.load_faces_from_csv(args.db)
 
-    # faces_files = utils.get_faces_in_files(preds_per_person)
-
     dets = {}
     if args.dets != None:
         dets, det_file_map = utils.load_detections_as_single_dict(args.dets)
@@ -72,8 +70,8 @@ def show_class(args, svm_clf):
 
             str_count = str(ix + 1) + ' / ' + str(len(preds_per_person[cls]))
             key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, cls, ix, preds_per_person, faces_files[image_path], image_path, waitkey=True, text=str_count)
-            utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, dets, det_file_map)
-            if key == 46: # key '.'
+            utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, dets, det_file_map, faces_files)
+            if key == 46 or key == 47: # key '.' or key '/'
                 ix += 1
             elif key == 44: # key ','
                 ix -= 1
@@ -81,110 +79,13 @@ def show_class(args, svm_clf):
                 # ix = random.randint(0, nr_of_faces)
                 # while (preds_per_person[cls][ix][3] != 0):
                 ix = random.randint(0, nr_of_faces-1)
-            # elif key == 99: # key 'c'
-            #     new_name = utils.guided_input(preds_per_person)
-            #     if new_name != "":
-            #         save.append(copy.deepcopy(preds_per_person))
-            #         # add pred in new list
-            #         if preds_per_person.get(new_name) == None:
-            #             preds_per_person[new_name] = []
-            #         utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
-            #         # delete pred in current list
-            #         utils.delete_element_preds_per_person(preds_per_person, cls, ix)
-            #         print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
-            # elif key == 109: # key 'm'
-            #     new_name = utils.guided_input(preds_per_person)
-            #     if new_name != "":
-            #         save.append(copy.deepcopy(preds_per_person))
-            #         utils.move_class(preds_per_person, cls, new_name)
-            #         print("class moved: {} -> {}".format(cls, new_name))
-            # elif key == 117: # key 'u'
-            #     save.append(copy.deepcopy(preds_per_person))
-            #     new_name = 'unknown'
-            #     # add pred in new list
-            #     if preds_per_person.get(new_name) == None:
-            #         preds_per_person[new_name] = []
-            #     utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
-            #     # delete pred in current list
-            #     utils.delete_element_preds_per_person(preds_per_person, cls, ix)
-            #     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
-            elif key == 47:  # key '/'
-                # save.append(copy.deepcopy(preds_per_person))
-                # tmp = preds_per_person[cls][ix]
-                # if tmp[3] == 0:
-                #     preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 1, tmp[4]
-                # elif tmp[3] == 1:
-                #     preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 0, tmp[4]
-                ix += 1
-                # print("face confirmed: {} ({})".format(tmp[0], len(preds_per_person[cls])))
             elif key == 102: #key 'f'
                 while (preds_per_person[cls][ix][3] != 0 and ix < nr_of_faces - 1):
                     ix += 1
-            # elif key >= 48 and key <= 57: # keys '0' - '9'
-            #     save.append(copy.deepcopy(preds_per_person))
-            #     new_name = names[key-48]
-            #     utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
-            #     # delete pred in current list
-            #     utils.delete_element_preds_per_person(preds_per_person, cls, ix)
-            #     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
-            # elif key == 100: # key 'd'
-            #     if 1:
-            #       save.append(copy.deepcopy(preds_per_person))
-            #       new_name = 'deleted'
-            #       # add pred in new list
-            #       if preds_per_person.get(new_name) == None:
-            #         preds_per_person[new_name] = []
-            #       utils.insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
-            #       # delete pred in current list
-            #       utils.delete_element_preds_per_person(preds_per_person, cls, ix)
-            #     else:
-            #       save.append(copy.deepcopy(preds_per_person))
-            #       # delete face
-            #       utils.delete_element_preds_per_person(preds_per_person, cls, ix)
-            #     print("face deleted")
-            # elif key == 116: # key 't'
-            #     subprocess.call(["open", "-R", image_path])
-            # elif key == 97: # key 'a'
-            #     # delete all faces of this class in the current image
-            #     save.append(copy.deepcopy(preds_per_person))
-            #     i = 0
-            #     while i < len(preds_per_person[cls]):
-            #         compare_path = preds_per_person[cls][i][1]
-            #         if preds_per_person[cls][i][1] == image_path:
-            #           utils.delete_element_preds_per_person(preds_per_person, cls, i)
-            #         else:
-            #             i += 1
-            #     # delete detections as well
-            #     if len(dets) != 0:
-            #         utils.delete_detections_of_file(dets, image_path)
-            #         print("all faces in {} deleted".format(image_path))
-            #     else:
-            #         print('detections not deleted from detections.bin')
-            # elif key == 105: # key 'i'
-            #     # delete all faces of this class in the current image AND set it to be ignored in the future (also for detection)
-            #     save.append(copy.deepcopy(preds_per_person))
-            #     i = 0
-            #     while i < len(preds_per_person[cls]):
-            #         compare_path = preds_per_person[cls][i][1]
-            #         if compare_path == image_path:
-            #           utils.delete_element_preds_per_person(preds_per_person, cls, i)
-            #         else:
-            #             i += 1
-            #     # ignore detections in the future
-            #     if len(dets) != 0:
-            #         utils.ignore_detections_of_file(dets, image_path)
-            #         #print("all faces in {} deleted and image will be ignored".format(image_path))
-            #     else:
-            #         print('detections not deleted from detections.bin')
             elif key == 98: #key 'b'
                 if len(save) > 0:
                     preds_per_person = copy.deepcopy(save.pop())
                     print("undone last action")
-            # elif key == 115: #key 's'
-            #     utils.export_persons_to_csv(preds_per_person, args.db)
-            #     if args.dets != None:
-            #       utils.save_detections(dets, det_file_map)
-            #     print('saved')
 
         utils.export_persons_to_csv(preds_per_person, args.db)
         if args.dets != None:
