@@ -7,6 +7,8 @@ import dlib
 from collections import Counter, OrderedDict
 import cv2
 from shapely.geometry import Polygon, Point
+import copy
+import subprocess
 
 def mkdir_p(path):
   if not os.path.isdir(path):
@@ -302,14 +304,6 @@ def initialize_face_data(preds_per_person, cls):
 def delete_element_preds_per_person(preds_per_person, cls, ix):
   preds_per_person[cls].pop(ix)
 
-  face_locations = []
-  face_encodings = []
-  for p in preds_per_person[cls]:
-    face_locations.append(p[0][1])
-    face_encodings.append(p[2])
-
-  return face_locations, face_encodings
-
 def move_class(preds_per_person, cls, new_cls):
   accept = input('All members from class {} will be moved to class {}. (y/n)?'.format(cls, new_cls))
   if accept == 'y':
@@ -317,16 +311,6 @@ def move_class(preds_per_person, cls, new_cls):
       insert_element_preds_per_person(preds_per_person, cls, i, new_cls, 1)
 
     preds_per_person[cls] = []
-
-    return [], []
-  else:
-    face_locations = []
-    face_encodings = []
-    for p in preds_per_person[cls]:
-      face_locations.append(p[0][1])
-      face_encodings.append(p[2])
-
-    return face_locations, face_encodings
 
 def insert_element_preds_per_person(preds_per_person, cls, ix, new_cls, conf=-1):
   tmp = preds_per_person[cls][ix]
@@ -357,18 +341,134 @@ def resizeCV(img, w):
 
   return cv2.resize(img, (int(width), int(height)))
 
-#TODO!!!
-def evaluate_key(key, preds_per_person, cls, idx):
-  print('test')
+def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_file_map):
+  if key == 99:  # key 'c'
+    new_name = guided_input(preds_per_person)
+    if new_name != "":
+      save.append(copy.deepcopy(preds_per_person))
+      # add pred in new list
+      if preds_per_person.get(new_name) == None:
+        preds_per_person[new_name] = []
+      insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
+      # delete pred in current list
+      delete_element_preds_per_person(preds_per_person, cls, ix)
+      print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
+  elif key == 109:  # key 'm'
+    new_name = guided_input(preds_per_person)
+    if new_name != "":
+      save.append(copy.deepcopy(preds_per_person))
+      move_class(preds_per_person, cls, new_name)
+      print("class moved: {} -> {}".format(cls, new_name))
+  elif key == 117:  # key 'u'
+    save.append(copy.deepcopy(preds_per_person))
+    new_name = 'unknown'
+    # add pred in new list
+    if preds_per_person.get(new_name) == None:
+      preds_per_person[new_name] = []
+    insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
+    # delete pred in current list
+    delete_element_preds_per_person(preds_per_person, cls, ix)
+    print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
+  elif key == 47:  # key '/'
+    save.append(copy.deepcopy(preds_per_person))
+    tmp = preds_per_person[cls][ix]
+    if tmp[3] == 0:
+      preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 1, tmp[4]
+    elif tmp[3] == 1:
+      preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 0, tmp[4]
+    print("face confirmed: {} ({})".format(tmp[0], len(preds_per_person[cls])))
+  elif key >= 48 and key <= 57:  # keys '0' - '9'
+    save.append(copy.deepcopy(preds_per_person))
+    new_name = names[key - 48]
+    insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
+    # delete pred in current list
+    delete_element_preds_per_person(preds_per_person, cls, ix)
+    print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
+  elif key == 100:  # key 'd'
+    if 1:
+      save.append(copy.deepcopy(preds_per_person))
+      new_name = 'deleted'
+      # add pred in new list
+      if preds_per_person.get(new_name) == None:
+        preds_per_person[new_name] = []
+      insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
+      # delete pred in current list
+      delete_element_preds_per_person(preds_per_person, cls, ix)
+    else:
+      save.append(copy.deepcopy(preds_per_person))
+      # delete face
+      delete_element_preds_per_person(preds_per_person, cls, ix)
+    print("face deleted")
+  elif key == 116:  # key 't'
+    subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
+  elif key == 97:  # key 'a'
+    # delete all faces of this class in the current image
+    save.append(copy.deepcopy(preds_per_person))
+    i = 0
+    while i < len(preds_per_person[cls]):
+      compare_path = preds_per_person[cls][i][1]
+      if compare_path == preds_per_person[cls][ix][1]:
+        delete_element_preds_per_person(preds_per_person, cls, i)
+      else:
+        i += 1
+    # delete detections as well
+    if len(dets) != 0:
+      delete_detections_of_file(dets, preds_per_person[cls][ix][1])
+      print("all faces in {} deleted".format(preds_per_person[cls][ix][1]))
+    else:
+      print('detections not deleted from detections.bin')
+  elif key == 105:  # key 'i'
+    # delete all faces of this class in the current image AND set it to be ignored in the future (also for detection)
+    save.append(copy.deepcopy(preds_per_person))
+    i = 0
+    while i < len(preds_per_person[cls]):
+      compare_path = preds_per_person[cls][i][1]
+      if compare_path == preds_per_person[cls][ix][1]:
+        delete_element_preds_per_person(preds_per_person, cls, i)
+      else:
+        i += 1
+    # ignore detections in the future
+    if len(dets) != 0:
+      ignore_detections_of_file(dets, preds_per_person[cls][ix][1])
+      # print("all faces in {} deleted and image will be ignored".format(image_path))
+    else:
+      print('detections not deleted from detections.bin')
+  elif key == 115:  # key 's'
+    export_persons_to_csv(preds_per_person, args.db)
+    if args.dets != None:
+      save_detections(dets, det_file_map)
+    print('saved')
+
+def get_rect_from_pts(pts, ws):
+  top = min(pts[0][1], pts[1][1])
+  left = min (pts[0][0], pts[1][0])
+  bottom = max(pts[0][1], pts[1][1])
+  right = max(pts[0][0], pts[1][0])
+  return (int(top/ws), int(right/ws), int(bottom/ws), int(left/ws))
+
+clicked_cls = ''
+clicked_idx = 0
+clicked_names = []
+refPt = []
+sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
+facerec = dlib.face_recognition_model_v1("models/dlib_face_recognition_resnet_model_v1.dat")
 
 def click(event, x, y, flags, params):
+
+  global clicked_cls, clicked_idx, clicked_names
+
+  global refPt
 
   image = params[0]
   preds_per_person = params[1]
   face_indices = params[2]
   ws = params[3]
+  svm_clf = params[4]
+  main_face = params[5]
+  main_idx = params[6]
 
-  if event == cv2.EVENT_LBUTTONDOWN:
+  if flags == (cv2.EVENT_FLAG_CTRLKEY + cv2.EVENT_FLAG_LBUTTON):
+    draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image)
     pt = Point(x,y)
     for i in face_indices:
       cls, idx = i
@@ -379,11 +479,38 @@ def click(event, x, y, flags, params):
       left = int(left * ws)
       p = Polygon([(left, top), (right, top), (right, bottom), (left, bottom)])
       if p.contains(pt):
-        cv2.rectangle(image, (left, top), (right, bottom), (255, 0, 0), 1)
-        cv2.imshow("faces", image)
-        key = cv2.waitKey(0)
-        evaluate_key(key, preds_per_person, cls, idx)
-        print(key)
+        cv2.rectangle(image, (left, top), (right, bottom), (255, 128, 0), 1)
+        clicked_cls = cls
+        clicked_idx = idx
+        print('clicked class: {}, clicked index: {}'.format(clicked_cls, clicked_idx))
+        clicked_names, probs = predict_face_svm(preds_per_person[clicked_cls][clicked_idx][2], svm_clf)
+        break
+      # else:
+        # cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), 1)
+        # draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image)
+  elif event == cv2.EVENT_LBUTTONDOWN:
+    refPt = [(x, y)]
+  elif event == cv2.EVENT_LBUTTONUP:
+    refPt.append((x, y))
+    # draw a rectangle around the region of interest
+    cv2.rectangle(image, refPt[0], refPt[1], (0, 255, 0), 1)
+    p = Polygon([refPt[0], (refPt[1][0], refPt[0][1]), refPt[1], (refPt[0][0], refPt[1][1])])
+    if p.area >= 10:
+      cv2.imshow("faces", image)
+      cv2.waitKey(1)
+      new_name = guided_input(preds_per_person)
+      new_loc = get_rect_from_pts(refPt, ws) # order in preds_per_person: (top(), right(), bottom(), left())
+      d = dlib.rectangle(new_loc[3], new_loc[0], new_loc[1], new_loc[2])
+      opencvImage = cv2.imread(preds_per_person[main_face][main_idx][1])
+      shape = sp(opencvImage, d)
+      face_descriptor = facerec.compute_face_descriptor(opencvImage, shape)
+      new_desc = np.array(face_descriptor)
+      if preds_per_person.get(new_name) == None:
+        preds_per_person[new_name] = []
+      preds_per_person[new_name].append(((new_name, new_loc), preds_per_person[main_face][main_idx][1], new_desc, 1, preds_per_person[main_face][main_idx][4]))
+    refPt = []
+
+  cv2.imshow("faces", image)
 
 def show_detections_on_image(locations, img_path, waitkey=True):
   opencvImage = cv2.imread(img_path)
@@ -400,9 +527,6 @@ def show_detections_on_image(locations, img_path, waitkey=True):
     left = int(left * ws)
     cv2.rectangle(opencvImage, (left, top), (right, bottom), (0, 255, 0), 1)
 
-  # cv2.namedWindow("detections")
-  # cv2.setMouseCallback("detections", click_and_crop, opencvImage)
-
   cv2.imshow("detections", opencvImage)
   if waitkey:
     return cv2.waitKey(0)
@@ -417,7 +541,24 @@ def draw_rect(image, loc, scale, color):
   left = int(left * scale)
   cv2.rectangle(image, (left, top), (right, bottom), color, 1)
 
-def show_faces_on_image(main_face, main_idx, preds_per_person, face_indices, img_path, waitkey=True, text = ''):
+def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image):
+  for i in face_indices:
+    cls, idx = i
+    if cls == 'unknown':
+      color = (0, 0, 255)
+    else:
+      color = (0, 255, 0)
+    draw_rect(image, preds_per_person[cls][idx][0][1], ws, color)
+
+  draw_rect(image, preds_per_person[main_face][main_idx][0][1], ws, (255, 0, 0))
+
+def show_faces_on_image(svm_clf, names, main_face, main_idx, preds_per_person, face_indices, img_path, waitkey=True, text = ''):
+  # initilize the "clicked face" with the current face (main face)
+  global clicked_cls, clicked_idx, clicked_names
+  clicked_cls = main_face
+  clicked_idx = main_idx
+  clicked_names = names
+
   opencvImage = cv2.imread(img_path)
 
   height, width = opencvImage.shape[:2]
@@ -433,20 +574,16 @@ def show_faces_on_image(main_face, main_idx, preds_per_person, face_indices, img
   if text != None:
     cv2.putText(opencvImage, text, (20, opencvImage.shape[0] - 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1)
 
-  for i in face_indices:
-    cls, idx = i
-    draw_rect(opencvImage, preds_per_person[cls][idx][0][1], ws, (0, 255, 0))
-
-  draw_rect(opencvImage, preds_per_person[main_face][main_idx][0][1], ws, (0, 0, 255))
+  draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, opencvImage)
 
   cv2.namedWindow("faces")
-  cv2.setMouseCallback("faces", click, (opencvImage, preds_per_person, face_indices, ws))
+  cv2.setMouseCallback("faces", click, (opencvImage, preds_per_person, face_indices, ws, svm_clf, main_face, main_idx))
 
   cv2.imshow("faces", opencvImage)
   if waitkey:
-    return cv2.waitKey(0)
+    return cv2.waitKey(0), clicked_cls, clicked_idx, clicked_names
   else:
-    return cv2.waitKey(1)
+    return cv2.waitKey(1), clicked_cls, clicked_idx, clicked_names
 
 # if index is -1: use all elements of predictions, if not, only use one (given by the index)
 def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, index=-1, img_path=None, text=None, force_name=''):
@@ -607,18 +744,21 @@ def predict_face_svm(enc, svm, print_top=True):
 
   names = []
   probs = []
-  if print_top:
-    print('\n')
   for s in range(10):
     ix = sorted[s]
     names.append(svm.classes_[ix])
     probs.append(preds[ix])
-    if print_top:
-      print('{}: name: {}, prob: {}'.format(s, names[s], probs[s]))
 
   if print_top:
-    print('\n')
+    print_top_svm(names, probs)
+
   return names, probs
+
+def print_top_svm(names, probs):
+  print('\n')
+  for i,(n,p) in enumerate(zip(names,probs)):
+    print('{}: name: {}, prob: {}'.format(i, n, p))
+  print('\n')
 
 def save_face_crop(face_path, img_path, loc):
     img = cv2.imread(img_path)
@@ -647,7 +787,8 @@ def get_faces_in_files(preds_per_person):
   faces_files = {}
   for p in preds_per_person:
     for i,f in enumerate(preds_per_person[p]):
-      if faces_files.get(f[1]) == None:
-        faces_files[f[1]] = []
-      faces_files[f[1]].append((p, i))
+      if f[0][0] != 'deleted':
+        if faces_files.get(f[1]) == None:
+          faces_files[f[1]] = []
+        faces_files[f[1]].append((p, i))
   return faces_files

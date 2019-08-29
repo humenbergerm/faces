@@ -23,7 +23,7 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
         preds_per_person[new_name] = []
       utils.insert_element_preds_per_person(preds_per_person, name, ins, new_name, 1)
       # delete pred in current list
-      face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, ins)
+      utils.delete_element_preds_per_person(preds_per_person, name, ins)
       print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 100:  # key 'd'
     new_name = 'deleted'
@@ -32,7 +32,7 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
       preds_per_person[new_name] = []
     utils.insert_element_preds_per_person(preds_per_person, name, ins, new_name)
     # delete pred in current list
-    face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, ins)
+    utils.delete_element_preds_per_person(preds_per_person, name, ins)
     print("face deleted")
   elif key == 47:  # key '/'
     tmp = preds_per_person[name][ins]
@@ -45,7 +45,7 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
     new_name = names[key - 48]
     utils.insert_element_preds_per_person(preds_per_person, name, ins, new_name, 1)
     # delete pred in current list
-    face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, ins)
+    utils.delete_element_preds_per_person(preds_per_person, name, ins)
     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 116:  # key 't'
     image_path = preds_per_person[name][-1][1]
@@ -60,7 +60,7 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
       preds_per_person[new_name] = []
     utils.insert_element_preds_per_person(preds_per_person, name, ins, new_name)
     # delete pred in current list
-    face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, ins)
+    utils.delete_element_preds_per_person(preds_per_person, name, ins)
     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
 
   return key
