@@ -6,6 +6,7 @@ import numpy as np
 import dlib
 from collections import Counter, OrderedDict
 import cv2
+from shapely.geometry import Polygon, Point
 
 def mkdir_p(path):
   if not os.path.isdir(path):
@@ -356,6 +357,34 @@ def resizeCV(img, w):
 
   return cv2.resize(img, (int(width), int(height)))
 
+#TODO!!!
+def evaluate_key(key, preds_per_person, cls, idx):
+  print('test')
+
+def click(event, x, y, flags, params):
+
+  image = params[0]
+  preds_per_person = params[1]
+  face_indices = params[2]
+  ws = params[3]
+
+  if event == cv2.EVENT_LBUTTONDOWN:
+    pt = Point(x,y)
+    for i in face_indices:
+      cls, idx = i
+      (top, right, bottom, left) = preds_per_person[cls][idx][0][1]
+      top = int(top * ws)
+      right = int(right * ws)
+      bottom = int(bottom * ws)
+      left = int(left * ws)
+      p = Polygon([(left, top), (right, top), (right, bottom), (left, bottom)])
+      if p.contains(pt):
+        cv2.rectangle(image, (left, top), (right, bottom), (255, 0, 0), 1)
+        cv2.imshow("faces", image)
+        key = cv2.waitKey(0)
+        evaluate_key(key, preds_per_person, cls, idx)
+        print(key)
+
 def show_detections_on_image(locations, img_path, waitkey=True):
   opencvImage = cv2.imread(img_path)
 
@@ -370,6 +399,48 @@ def show_detections_on_image(locations, img_path, waitkey=True):
     bottom = int(bottom * ws)
     left = int(left * ws)
     cv2.rectangle(opencvImage, (left, top), (right, bottom), (0, 255, 0), 1)
+
+  # cv2.namedWindow("detections")
+  # cv2.setMouseCallback("detections", click_and_crop, opencvImage)
+
+  cv2.imshow("detections", opencvImage)
+  if waitkey:
+    return cv2.waitKey(0)
+  else:
+    return cv2.waitKey(1)
+
+def draw_rect(image, loc, scale, color):
+  (top, right, bottom, left) = loc
+  top = int(top * scale)
+  right = int(right * scale)
+  bottom = int(bottom * scale)
+  left = int(left * scale)
+  cv2.rectangle(image, (left, top), (right, bottom), color, 1)
+
+def show_faces_on_image(main_face, main_idx, preds_per_person, face_indices, img_path, waitkey=True, text = ''):
+  opencvImage = cv2.imread(img_path)
+
+  height, width = opencvImage.shape[:2]
+  ws = 600.0 / float(height)
+  opencvImage = cv2.resize(opencvImage, (int(width * ws), int(height * ws)))
+
+  confirmed = preds_per_person[main_face][main_idx][3]
+  if confirmed >= 1:
+    color = (0, 255, 0)
+  else:
+    color = (255, 0, 0)
+  cv2.putText(opencvImage, main_face, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
+  if text != None:
+    cv2.putText(opencvImage, text, (20, opencvImage.shape[0] - 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1)
+
+  for i in face_indices:
+    cls, idx = i
+    draw_rect(opencvImage, preds_per_person[cls][idx][0][1], ws, (0, 255, 0))
+
+  draw_rect(opencvImage, preds_per_person[main_face][main_idx][0][1], ws, (0, 0, 255))
+
+  cv2.namedWindow("faces")
+  cv2.setMouseCallback("faces", click, (opencvImage, preds_per_person, face_indices, ws))
 
   cv2.imshow("faces", opencvImage)
   if waitkey:
@@ -575,8 +646,8 @@ def save_face_crop_aligned(sp, face_path, img_path, loc):
 def get_faces_in_files(preds_per_person):
   faces_files = {}
   for p in preds_per_person:
-    for f in preds_per_person[p]:
+    for i,f in enumerate(preds_per_person[p]):
       if faces_files.get(f[1]) == None:
         faces_files[f[1]] = []
-      faces_files[f[1]].append(f[0][1])
+      faces_files[f[1]].append((p, i))
   return faces_files

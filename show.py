@@ -64,15 +64,15 @@ def show_class(args, svm_clf):
             names, probs = utils.predict_face_svm(face_encodings[ix], svm_clf)
             name = names[0]
 
-            utils.show_detections_on_image(faces_files[image_path], image_path, waitkey=False)
+            str_count = str(ix + 1) + ' / ' + str(len(preds_per_person[cls]))
+            key = utils.show_faces_on_image(cls, ix, preds_per_person, faces_files[image_path], image_path, waitkey=True, text=str_count)
 
             #nr_conf, nr_ignored, nr_not_ignored = utils.count_preds_status(preds_per_person[cls])
             #str_count = 'total: ' + str(len(preds_per_person[cls])) + ', confirmed: ' + str(nr_conf) + ', ignored: ' + str(nr_ignored)
-            str_count = str(ix+1) + ' / ' + str(len(preds_per_person[cls]))
 
-            predictions = []
-            predictions.append((cls, face_locations[ix]))
-            key = utils.show_prediction_labels_on_image(predictions, None, preds_per_person[cls][ix][3], 0, preds_per_person[cls][ix][1], str_count)
+            # predictions = []
+            # predictions.append((cls, face_locations[ix]))
+            # key = utils.show_prediction_labels_on_image(predictions, None, preds_per_person[cls][ix][3], 0, preds_per_person[cls][ix][1], str_count)
             if key == 46: # key '.'
                 ix += 1
             elif key == 44: # key ','

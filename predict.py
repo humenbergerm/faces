@@ -21,13 +21,9 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
       # add pred in new list
       if preds_per_person.get(new_name) == None:
         preds_per_person[new_name] = []
-      # print(preds_per_person[name][-1])
-      # print(preds_per_person[new_name][-1])
       utils.insert_element_preds_per_person(preds_per_person, name, ins, new_name, 1)
-      # print(preds_per_person[new_name][-1])
       # delete pred in current list
       face_locations, face_encodings = utils.delete_element_preds_per_person(preds_per_person, name, ins)
-      # print(preds_per_person[name][-1])
       print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 100:  # key 'd'
     new_name = 'deleted'
