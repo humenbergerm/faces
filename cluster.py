@@ -158,6 +158,7 @@ def main():
                       action='store_true')
   args = parser.parse_args()
 
+  #TODO: only use cluster_faces_in_class and add export as crops or class option
   if os.path.isdir(args.detections):
     if not os.path.isdir(args.outdir):
       utils.mkdir_p(args.outdir)

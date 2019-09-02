@@ -1,8 +1,6 @@
 import os.path
 import pickle
-from PIL import Image
 import argparse
-from datetime import datetime
 import copy
 import subprocess
 
@@ -183,17 +181,7 @@ def predict_faces(args, knn_clf, svm_clf, detections):
           continue
 
         # in order to use the exif timestamp, all timestamps and dates etc in the exif data from the images need to be fixed first
-        timeStamp = datetime.now()
-        no_timestamp = True
-        if full_file_path.lower().endswith(('.jpg')):
-            pil_image = Image.open(full_file_path)
-            exif = pil_image._getexif()
-            if exif != None:
-                if exif.get(36868) != None:
-                    date = exif[36868]
-                    if utils.is_valid_timestamp(date):
-                        timeStamp = datetime.strptime(date, '%Y:%m:%d %H:%M:%S')
-                        no_timestamp = False
+        timeStamp = utils.get_timestamp(full_file_path)
 
         predictions = predict_image(descriptors, locations, knn_clf)
 
@@ -297,6 +285,7 @@ def main():
   #     print('Aborted.')
   #     exit()
 
+  # TODO: use predict_class only
   if os.path.isdir(args.detections):
     print('Predicting faces in {}'.format(args.detections))
     detections, det_file_map = utils.load_detections_as_single_dict(args.detections)

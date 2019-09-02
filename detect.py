@@ -10,6 +10,17 @@ import utils
 
 def detect_faces(args):
 
+    detection_status_file = os.path.join(args.db, 'detection_status.bin')
+    if os.path.isfile(detection_status_file):
+      detection_status = pickle.load(open(detection_status_file, 'rb'))
+    else:
+      detection_status = {}
+
+    preds_per_person = utils.load_faces_from_csv(args.db)
+    faces_files = utils.get_faces_in_files(preds_per_person)
+    # TODO: get detections from preds_per_person
+    #       add file to save the status of detection (list of files and which detector was used)
+
     dirs = utils.get_folders_in_dir_rec(args.input)
     # if there is no sub-folder, process input folder
     if len(dirs) == 0:
@@ -24,20 +35,10 @@ def detect_faces(args):
       output_path = os.path.join(args.outdir, output_path)
       if not os.path.isdir(output_path):
         utils.mkdir_p(output_path)
-      detect_faces_in_folder(args, d, output_path)
+      detect_faces_in_folder(args, preds_per_person, faces_files, d, output_path, detection_status)
 
-def face_intersect(p1, p2):
-    # two faces (p1,p2) intersect only if the intersection area is larger than half of p1's size
-
-    if not p1.intersects(p2):
-      return False
-    else:
-      if p1.intersection(p2).area < 0.5 * p1.area:
-        return False
-      else:
-        return True
-
-def detect_faces_in_folder(args, folder, output_path):
+def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_path, detection_status):
+    detection_status_file = os.path.join(args.db, 'detection_status.bin')
     detections_path = os.path.join(output_path, "detections.bin")
     if os.path.isfile(detections_path):
         print('loading {}'.format(detections_path))
@@ -64,55 +65,63 @@ def detect_faces_in_folder(args, folder, output_path):
         print("Processing file ({}/{}): {}".format(counter, total, f))
         counter += 1
 
+        if detection_status.get(f) != None and not args.recompute:
+          print('file already processed, skipping, ...')
+          continue
+
         if detections.get(f) != None and not args.recompute:
             print('file already processed, skipping, ...')
             # locs, descs = detections[os.path.abspath(f)]
             # utils.show_detections_on_image(locs, f)
             continue
 
-        locations_cv2, descriptors_cv2 = utils.detect_faces_in_image_cv2(f, net, facerec, sp)
+        locations_cv2, descriptors_cv2 = utils.detect_faces_in_image_cv2(f, net, facerec, sp, detector)
         print('cv2: {} detection(s) found'.format(len(locations_cv2)))
-        # utils.show_detections_on_image(locations, f)
+        # utils.show_detections_on_image(locations_cv2, f)
 
         locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
         print('dlib: {} detection(s) found'.format(len(locations)))
+        # utils.show_detections_on_image(locations, f)
+
         # utils.show_detections_on_image(locations+locations_cv2, f)
 
-        # merge detections
-        locs = locations_cv2.copy()
-        descs = descriptors_cv2.copy()
-        for l, d in zip(locations, descriptors):
-          intersect = False
-          p1 = Polygon([(l[3], l[0]), (l[1], l[0]), (l[1], l[2]), (l[3], l[2])])
-          for l1, d1 in zip(locations_cv2, descriptors_cv2):
-            p2 = Polygon([(l1[3], l1[0]), (l1[1], l1[0]), (l1[1], l1[2]), (l1[3], l1[2])])
-            if p1.intersects(p2):
-              intersect = True
-            # if p1.area > p2.area:
-            #   # remove l1,d1 from locs,decs
-            #   locs.remove(l1)
-            #   decs.remove(d1)
-            #   # add l,d to locs,decs
-            #   locs.append(l)
-            #   descs.append(d)
-          if not intersect:
-            locs.append(l)
-            descs.append(d)
-
+        # merge detections dlib and cv2
+        locs, descs = utils.merge_detections(locations, descriptors, locations_cv2, descriptors_cv2)
         print('total: {} detection(s) found'.format(len(locs)))
-        detections[os.path.abspath(f)] = (locs, descs)
 
-        # utils.show_detections_on_image(locs, f)
+        # merge detections with already saved ones
+        # detections[os.path.abspath(f)] = (locs, descs)
+        # utils.show_detections_on_image(detections[os.path.abspath(f)][0], f)
+        # utils.show_detections_on_image(detections[os.path.abspath(f)][0] + locs, f)
+        locs, descs = utils.merge_detections(detections[os.path.abspath(f)][0], detections[os.path.abspath(f)][1], locs, descs)
+        # utils.show_detections_on_image(detections[os.path.abspath(f)][0], f)
 
-        if n % 100 == 0:
-            check_detections(detections)
-            with open(detections_path, "wb") as fp:
-                pickle.dump(detections, fp)
-                print('saved')
+        # save dets to preds_per_person class "detected"
+        timeStamp = utils.get_timestamp(f)
+        cls = 'detected'
+        for l,d in zip(locs, descs):
+          if preds_per_person.get(cls) == None:
+            preds_per_person[cls] = []
+          utils.add_new_face(preds_per_person, faces_files, cls, l, d, f, timeStamp)
 
-    with open(detections_path, "wb") as fp:
-        check_detections(detections)
-        pickle.dump(detections, fp)
+        detection_status[f] = {'cv2': 1, 'dlib': 1}
+
+        if n % 100 == 0 and n != 0:
+          utils.export_persons_to_csv(preds_per_person, args.db)
+          with open(detection_status_file, 'wb') as fp:
+            pickle.dump(detection_status, fp)
+
+    #         check_detections(detections)
+    #         with open(detections_path, "wb") as fp:
+    #             pickle.dump(detections, fp)
+    #             print('saved')
+    #
+    # with open(detections_path, "wb") as fp:
+    utils.export_persons_to_csv(preds_per_person, args.db)
+    with open(detection_status_file, 'wb') as fp:
+      pickle.dump(detection_status, fp)
+    #     check_detections(detections)
+    #     pickle.dump(detections, fp)
 
 def check_detections(detections):
   for d in list(detections):
@@ -128,6 +137,8 @@ def main():
                         help="Root directory of your image library.")
     parser.add_argument('--outdir', type=str, required=True,
                         help="Output directory.")
+    parser.add_argument('--db', type=str, required=True,
+                        help="Path to folder with predicted faces (.csv files).")
     parser.add_argument('--recompute', help='Recompute detections.',
                         action='store_true')
     args = parser.parse_args()

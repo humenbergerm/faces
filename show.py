@@ -105,6 +105,7 @@ def main():
                       help="Mask folder for faces. Only faces of images within this folder will be shown.")
   args = parser.parse_args()
 
+  #TODO: remove dets
   if not os.path.isdir(args.db):
       print('args.db is not a valid directory')
 

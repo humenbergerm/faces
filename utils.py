@@ -9,6 +9,12 @@ import cv2
 from shapely.geometry import Polygon, Point
 import copy
 import subprocess
+from shapely.ops import cascaded_union
+from datetime import datetime
+from PIL import Image
+# from matplotlib import pyplot as plt
+# import geopandas as gpd
+# from descartes import PolygonPatch
 
 def mkdir_p(path):
   if not os.path.isdir(path):
@@ -238,13 +244,14 @@ def is_valid_roi(x, y, w, h, img_shape):
     return True
   return False
 
-def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=False):
+def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=False, dets=[]):
   img = dlib.load_rgb_image(img_path)
 
-  if use_entire_image:
-    dets = [dlib.rectangle(0, 0, img.shape[1] - 1, img.shape[0] - 1)]
-  else:
-    dets = detector(img, 1)
+  if dets == []:
+    if use_entire_image:
+      dets = [dlib.rectangle(0, 0, img.shape[1] - 1, img.shape[0] - 1)]
+    else:
+      dets = detector(img, 1)
 
   #print("Number of faces detected: {}".format(len(dets)))
 
@@ -269,26 +276,25 @@ def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=Fals
 
   return locations, descriptors
 
-def detect_faces_in_image_cv2(img_path, net, facerec, sp):
+def detect_faces_in_image_cv2(img_path, net, facerec, sp, detector):
   opencvImage = cv2.imread(img_path)
   h, w = opencvImage.shape[:2]
-  blob = cv2.dnn.blobFromImage(cv2.resize(opencvImage, (300,300)), 1.0, (300, 300), (103.93, 116.77, 123.68))
+  dim = (300,300)
+  blob = cv2.dnn.blobFromImage(cv2.resize(opencvImage, dim), 1.0, dim, (103.93, 116.77, 123.68))
 
   net.setInput(blob)
   detections = net.forward()
 
-  locations = []
-  descriptors = []
+  dets = []
   for i in range(detections.shape[2]):
     confidence = detections[0, 0, i, 2]
     if confidence > 0.5:
       box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
       (x1, y1, x2, y2) = box.astype("int")
       d = dlib.rectangle(x1, y1, x2, y2)
-      shape = sp(opencvImage, d)
-      face_descriptor = facerec.compute_face_descriptor(opencvImage, shape)
-      descriptors.append(np.array(face_descriptor))
-      locations.append((d.top(), d.right(), d.bottom(), d.left()))
+      dets.append(d)
+
+  locations, descriptors = detect_faces_in_image(img_path, detector, facerec, sp, dets=dets)
 
   return locations, descriptors
 
@@ -302,6 +308,10 @@ def initialize_face_data(preds_per_person, cls):
   return face_locations, face_encodings
 
 def delete_element_preds_per_person(preds_per_person, cls, ix):
+  new_name = 'deleted'
+  # add pred in new list
+  insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
+  # delete pred in current list
   preds_per_person[cls].pop(ix)
 
 def move_class(preds_per_person, cls, new_cls):
@@ -319,6 +329,16 @@ def insert_element_preds_per_person(preds_per_person, cls, ix, new_cls, conf=-1)
   if preds_per_person.get(new_cls) == None:
     preds_per_person[new_cls] = []
   preds_per_person[new_cls].append(((new_cls, tmp[0][1]), tmp[1], tmp[2], conf, tmp[4]))
+
+def add_new_face(preds_per_person, faces_files, cls, loc, desc, f, timeStamp):
+  if faces_files.get(f) != None: # if there is no face detected yet, there won't be an entry in face_files -> directly add new face
+    for p in faces_files[f]:
+      c, i = p
+      if np.linalg.norm(desc - preds_per_person[c][i][2]) == 0:
+        print('face found in class {}'.format(c)) # if the face was found, skip it
+        return
+  print('added new face to {}'.format(cls))
+  preds_per_person[cls].append([(cls, loc), f, desc, 0, timeStamp])
 
 def count_preds_status(preds_per_person):
   count_ignored = 0
@@ -385,19 +405,12 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_fi
     delete_element_preds_per_person(preds_per_person, cls, ix)
     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 100:  # key 'd'
-    if 1:
-      save.append(copy.deepcopy(preds_per_person))
-      new_name = 'deleted'
-      # add pred in new list
-      if preds_per_person.get(new_name) == None:
-        preds_per_person[new_name] = []
-      insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
-      # delete pred in current list
-      delete_element_preds_per_person(preds_per_person, cls, ix)
-    else:
-      save.append(copy.deepcopy(preds_per_person))
-      # delete face
-      delete_element_preds_per_person(preds_per_person, cls, ix)
+    save.append(copy.deepcopy(preds_per_person))
+    # new_name = 'deleted'
+    # add pred in new list
+    # insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
+    # delete pred in current list
+    delete_element_preds_per_person(preds_per_person, cls, ix)
     print("face deleted")
   elif key == 116:  # key 't'
     subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
@@ -407,24 +420,25 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_fi
     for f in faces_files[preds_per_person[cls][ix][1]]:
       del_cls, del_i = f
       delete_element_preds_per_person(preds_per_person, del_cls, del_i)
+    print('all faces in {} deleted'.format(preds_per_person[cls][ix][1]))
     # delete detections as well
-    if len(dets) != 0:
-      delete_detections_of_file(dets, preds_per_person[cls][ix][1])
-      print("all faces in {} deleted".format(preds_per_person[cls][ix][1]))
-    else:
-      print('detections not deleted from detections.bin')
-  elif key == 105:  # key 'i'
-    # delete all faces in the current image AND set it to be ignored in the future (also for detection)
-    save.append(copy.deepcopy(preds_per_person))
-    for f in faces_files[preds_per_person[cls][ix][1]]:
-      del_cls, del_i = f
-      delete_element_preds_per_person(preds_per_person, del_cls, del_i)
-    # ignore detections in the future
-    if len(dets) != 0:
-      ignore_detections_of_file(dets, preds_per_person[cls][ix][1])
-      # print("all faces in {} deleted and image will be ignored".format(image_path))
-    else:
-      print('detections not deleted from detections.bin')
+    # if len(dets) != 0:
+    #   delete_detections_of_file(dets, preds_per_person[cls][ix][1])
+    #   print("all faces in {} deleted".format(preds_per_person[cls][ix][1]))
+    # else:
+    #   print('detections not deleted from detections.bin')
+  # elif key == 105:  # key 'i'
+  #   # delete all faces in the current image AND set it to be ignored in the future (also for detection)
+  #   save.append(copy.deepcopy(preds_per_person))
+  #   for f in faces_files[preds_per_person[cls][ix][1]]:
+  #     del_cls, del_i = f
+  #     delete_element_preds_per_person(preds_per_person, del_cls, del_i)
+  #   # ignore detections in the future
+  #   if len(dets) != 0:
+  #     ignore_detections_of_file(dets, preds_per_person[cls][ix][1])
+  #     # print("all faces in {} deleted and image will be ignored".format(image_path))
+  #   else:
+  #     print('detections not deleted from detections.bin')
   elif key == 115:  # key 's'
     export_persons_to_csv(preds_per_person, args.db)
     if args.dets != None:
@@ -539,12 +553,14 @@ def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image):
   for i in face_indices:
     cls, idx = i
     if cls == 'unknown':
-      color = (0, 0, 255)
+      color = (0, 0, 255) # red
+    elif cls == 'deleted':
+      color = (128, 128, 128) # gray
     else:
-      color = (0, 255, 0)
+      color = (0, 255, 0) # green
     draw_rect(image, preds_per_person[cls][idx][0][1], ws, color)
 
-  draw_rect(image, preds_per_person[main_face][main_idx][0][1], ws, (255, 0, 0))
+  draw_rect(image, preds_per_person[main_face][main_idx][0][1], ws, (255, 0, 0)) # blue
 
 def show_faces_on_image(svm_clf, names, main_face, main_idx, preds_per_person, face_indices, img_path, waitkey=True, text = ''):
   # initilize the "clicked face" with the current face (main face)
@@ -781,8 +797,82 @@ def get_faces_in_files(preds_per_person):
   faces_files = {}
   for p in preds_per_person:
     for i,f in enumerate(preds_per_person[p]):
-      if f[0][0] != 'deleted':
+      # if f[0][0] != 'deleted':
         if faces_files.get(f[1]) == None:
           faces_files[f[1]] = []
         faces_files[f[1]].append((p, i))
   return faces_files
+
+def face_intersect(p1, p2):
+  if not p1.intersects(p2):
+    return False
+  else:
+    if p1.contains(p2) or p2.contains(p1):
+      return True
+    else:
+      return False
+
+def get_iou(p1, p2):
+  polygons = [p1, p2]
+  union = cascaded_union(polygons)
+  return p1.intersection(p2).area / union.area
+
+# def remove_overlaps(locs1, descs1):
+#   locs = locs1.copy()
+#   descs = descs1.copy()
+#   for j in range(0, len(locs1)-1):
+#     l = locs1[j]
+#     p2 = Polygon([(l[3], l[0]), (l[1], l[0]), (l[1], l[2]), (l[3], l[2])])
+#     for i in range(j+1, len(locs1)):
+#       l1 = locs1[i]
+#       p1 = Polygon([(l1[3], l1[0]), (l1[1], l1[0]), (l1[1], l1[2]), (l1[3], l1[2])])
+#       if face_intersect(p1, p2):
+#         locs.pop(j)
+#         descs.pop(j)
+#
+#   return locs, descs
+
+def merge_detections(locs1, descs1, locs2, descs2, return_diff=False):
+  locs = locs1.copy()
+  descs = descs1.copy()
+  l_diff = []
+  d_diff = []
+  for j in range(0, len(locs2)):
+    intersect = False
+    l = locs2[j]
+    p2 = Polygon([(l[3], l[0]), (l[1], l[0]), (l[1], l[2]), (l[3], l[2])])
+    for i in range(0, len(locs1)):
+      l1 = locs1[i]
+      p1 = Polygon([(l1[3], l1[0]), (l1[1], l1[0]), (l1[1], l1[2]), (l1[3], l1[2])])
+
+      if p1.intersects(p2):
+        iou = get_iou(p1, p2)
+        # print(iou)
+        if iou > 0.5:
+          intersect = True
+
+    if not intersect:
+      locs.append(locs2[j])
+      descs.append(descs2[j])
+      if return_diff:
+        l_diff.append(locs2[j])
+        d_diff.append(descs2[j])
+
+  if return_diff:
+    return l_diff, d_diff
+  else:
+    return locs, descs
+
+def get_timestamp(f):
+  timeStamp = datetime.now()
+  no_timestamp = True
+  if f.lower().endswith(('.jpg')):
+    pil_image = Image.open(f)
+    exif = pil_image._getexif()
+    if exif != None:
+      if exif.get(36868) != None:
+        date = exif[36868]
+        if is_valid_timestamp(date):
+          timeStamp = datetime.strptime(date, '%Y:%m:%d %H:%M:%S')
+          no_timestamp = False
+  return timeStamp
