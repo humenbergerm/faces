@@ -8,6 +8,8 @@ from shapely.geometry import Polygon
 
 import utils
 
+processed_faces = 0
+
 def detect_faces(args):
 
     detection_status_file = os.path.join(args.db, 'detection_status.bin')
@@ -19,7 +21,9 @@ def detect_faces(args):
     preds_per_person = utils.load_faces_from_csv(args.db)
     faces_files = utils.get_faces_in_files(preds_per_person)
     # TODO: get detections from preds_per_person
-    #       add file to save the status of detection (list of files and which detector was used)
+
+    # initialize counters
+    total_faces = len(utils.get_images_in_dir_rec(args.input))
 
     dirs = utils.get_folders_in_dir_rec(args.input)
     # if there is no sub-folder, process input folder
@@ -35,11 +39,12 @@ def detect_faces(args):
       output_path = os.path.join(args.outdir, output_path)
       if not os.path.isdir(output_path):
         utils.mkdir_p(output_path)
-      detect_faces_in_folder(args, preds_per_person, faces_files, d, output_path, detection_status)
+      detect_faces_in_folder(args, preds_per_person, faces_files, d, output_path, detection_status, total_faces)
 
-def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_path, detection_status):
+def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_path, detection_status, total_faces):
+    global processed_faces
     detection_status_file = os.path.join(args.db, 'detection_status.bin')
-    detections_path = os.path.join(output_path, "detections.bin")
+    detections_path = os.path.join(output_path, 'detections.bin')
     if os.path.isfile(detections_path):
         print('loading {}'.format(detections_path))
         detections = pickle.load(open(detections_path, "rb"))
@@ -60,20 +65,25 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_p
 
     # Find all the faces and compute 128D face descriptors for each face.
     counter = 1
-    total = len(files)
+    # total = len(files)
+    changed = False
     for n, f in enumerate(files):
-        print("Processing file ({}/{}): {}".format(counter, total, f))
+        # print("Processing file ({}/{}): {}".format(counter, total, f))
+        print("Processing file ({}/{}): {}".format(processed_faces, total_faces, f))
         counter += 1
+        processed_faces = processed_faces+1
 
         if detection_status.get(f) != None and not args.recompute:
           print('file already processed, skipping, ...')
           continue
 
-        if detections.get(f) != None and not args.recompute:
-            print('file already processed, skipping, ...')
-            # locs, descs = detections[os.path.abspath(f)]
-            # utils.show_detections_on_image(locs, f)
-            continue
+        changed = True
+
+        # if detections.get(f) != None and not args.recompute:
+        #     print('file already processed, skipping, ...')
+        #     # locs, descs = detections[os.path.abspath(f)]
+        #     # utils.show_detections_on_image(locs, f)
+        #     continue
 
         locations_cv2, descriptors_cv2 = utils.detect_faces_in_image_cv2(f, net, facerec, sp, detector)
         print('cv2: {} detection(s) found'.format(len(locations_cv2)))
@@ -93,7 +103,9 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_p
         # detections[os.path.abspath(f)] = (locs, descs)
         # utils.show_detections_on_image(detections[os.path.abspath(f)][0], f)
         # utils.show_detections_on_image(detections[os.path.abspath(f)][0] + locs, f)
-        locs, descs = utils.merge_detections(detections[os.path.abspath(f)][0], detections[os.path.abspath(f)][1], locs, descs)
+        if detections.get(os.path.abspath(f)) != None:
+          locs, descs = utils.merge_detections(detections[os.path.abspath(f)][0], detections[os.path.abspath(f)][1], locs, descs)
+
         # utils.show_detections_on_image(detections[os.path.abspath(f)][0], f)
 
         # save dets to preds_per_person class "detected"
@@ -106,10 +118,11 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_p
 
         detection_status[f] = {'cv2': 1, 'dlib': 1}
 
-        if n % 100 == 0 and n != 0:
+        if n % 100 == 0 and n != 0 and changed:
           utils.export_persons_to_csv(preds_per_person, args.db)
           with open(detection_status_file, 'wb') as fp:
             pickle.dump(detection_status, fp)
+          changed = False
 
     #         check_detections(detections)
     #         with open(detections_path, "wb") as fp:
@@ -117,9 +130,10 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_p
     #             print('saved')
     #
     # with open(detections_path, "wb") as fp:
-    utils.export_persons_to_csv(preds_per_person, args.db)
-    with open(detection_status_file, 'wb') as fp:
-      pickle.dump(detection_status, fp)
+    if changed:
+      utils.export_persons_to_csv(preds_per_person, args.db)
+      with open(detection_status_file, 'wb') as fp:
+        pickle.dump(detection_status, fp)
     #     check_detections(detections)
     #     pickle.dump(detections, fp)
 

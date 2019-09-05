@@ -361,7 +361,7 @@ def resizeCV(img, w):
 
   return cv2.resize(img, (int(width), int(height)))
 
-def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_file_map, faces_files):
+def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files):
   if key == 99:  # key 'c'
     new_name = guided_input(preds_per_person)
     if new_name != "":
@@ -415,11 +415,12 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_fi
   elif key == 116:  # key 't'
     subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
   elif key == 97:  # key 'a'
-    # delete all faces in the current image
+    # delete all 'unknown' or 'detected' faces in the current image
     save.append(copy.deepcopy(preds_per_person))
     for f in faces_files[preds_per_person[cls][ix][1]]:
       del_cls, del_i = f
-      delete_element_preds_per_person(preds_per_person, del_cls, del_i)
+      if del_cls == 'unknown' or del_cls == 'detected':
+        delete_element_preds_per_person(preds_per_person, del_cls, del_i)
     print('all faces in {} deleted'.format(preds_per_person[cls][ix][1]))
     # delete detections as well
     # if len(dets) != 0:
@@ -441,8 +442,8 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, dets, det_fi
   #     print('detections not deleted from detections.bin')
   elif key == 115:  # key 's'
     export_persons_to_csv(preds_per_person, args.db)
-    if args.dets != None:
-      save_detections(dets, det_file_map)
+    # if args.dets != None:
+    #   save_detections(dets, det_file_map)
     print('saved')
 
 def get_rect_from_pts(pts, ws):
@@ -556,6 +557,8 @@ def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image):
       color = (0, 0, 255) # red
     elif cls == 'deleted':
       color = (128, 128, 128) # gray
+    elif cls == 'detected':
+      color = (0, 128, 255)
     else:
       color = (0, 255, 0) # green
     draw_rect(image, preds_per_person[cls][idx][0][1], ws, color)

@@ -108,13 +108,13 @@ def predict_class(args, knn_clf, svm_clf):
         pos += 1
 
     if name != cls:
-      save = copy.deepcopy(preds_per_person)
+      if args.confirm:
+        save = copy.deepcopy(preds_per_person)
       # move to new class
       new_counter += 1
       tmp = preds_per_person[cls][pos]
       if preds_per_person.get(name) == None:
         preds_per_person[name] = []
-      # print(preds_per_person[name][-1])
       preds_per_person[name].append(((name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
       preds_per_person[cls].pop(pos) # this is why pos is needed
       print('{} found'.format(name))
@@ -131,13 +131,12 @@ def predict_class(args, knn_clf, svm_clf):
             repeat = False
     else:
       known_counter += 1
-      # pos += 1
 
   utils.export_persons_to_csv(preds_per_person, args.db)
 
   print("predicted faces of class {}".format(cls))
   print("{} new face(s) found. They were moved to their class.".format(new_counter))
-  print("{} face(s) unknown. They are not changed!".format(unknown_counter))
+  print("{} face(s) unknown.".format(unknown_counter))
   print("{} face(s) unchanged.".format(known_counter))
 
 def predict_image(descriptors, locations, knn_clf, distance_threshold=0.3):

@@ -13,10 +13,6 @@ def show_class(args, svm_clf):
 
     preds_per_person = utils.load_faces_from_csv(args.db)
 
-    dets = {}
-    if args.dets != None:
-        dets, det_file_map = utils.load_detections_as_single_dict(args.dets)
-
     if args.face == 'all':
         classes = preds_per_person
     else:
@@ -70,14 +66,12 @@ def show_class(args, svm_clf):
 
             str_count = str(ix + 1) + ' / ' + str(len(preds_per_person[cls]))
             key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, cls, ix, preds_per_person, faces_files[image_path], image_path, waitkey=True, text=str_count)
-            utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, dets, det_file_map, faces_files)
+            utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files)
             if key == 46 or key == 47: # key '.' or key '/'
                 ix += 1
             elif key == 44: # key ','
                 ix -= 1
             elif key == 114: # key 'r'
-                # ix = random.randint(0, nr_of_faces)
-                # while (preds_per_person[cls][ix][3] != 0):
                 ix = random.randint(0, nr_of_faces-1)
             elif key == 102: #key 'f'
                 while (preds_per_person[cls][ix][3] != 0 and ix < nr_of_faces - 1):
@@ -88,8 +82,6 @@ def show_class(args, svm_clf):
                     print("undone last action")
 
         utils.export_persons_to_csv(preds_per_person, args.db)
-        if args.dets != None:
-          utils.save_detections(dets, det_file_map)
 
 def main():
   parser = argparse.ArgumentParser()
