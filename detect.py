@@ -20,7 +20,6 @@ def detect_faces(args):
 
     preds_per_person = utils.load_faces_from_csv(args.db)
     faces_files = utils.get_faces_in_files(preds_per_person)
-    # TODO: get detections from preds_per_person
 
     # initialize counters
     total_faces = len(utils.get_images_in_dir_rec(args.input))
@@ -35,21 +34,17 @@ def detect_faces(args):
       imgs = utils.get_images_in_dir(d)
       if len(imgs) == 0:
         continue
-      output_path = os.path.relpath(d, args.imgs_root)
-      output_path = os.path.join(args.outdir, output_path)
-      if not os.path.isdir(output_path):
-        utils.mkdir_p(output_path)
-      detect_faces_in_folder(args, preds_per_person, faces_files, d, output_path, detection_status, total_faces)
+      detect_faces_in_folder(args, preds_per_person, faces_files, d, detection_status, total_faces)
 
-def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_path, detection_status, total_faces):
+def detect_faces_in_folder(args, preds_per_person, faces_files, folder, detection_status, total_faces):
     global processed_faces
     detection_status_file = os.path.join(args.db, 'detection_status.bin')
-    detections_path = os.path.join(output_path, 'detections.bin')
-    if os.path.isfile(detections_path):
-        print('loading {}'.format(detections_path))
-        detections = pickle.load(open(detections_path, "rb"))
-    else:
-        detections = {}
+    # detections_path = os.path.join(output_path, 'detections.bin')
+    # if os.path.isfile(detections_path):
+    #     print('loading {}'.format(detections_path))
+    #     detections = pickle.load(open(detections_path, "rb"))
+    # else:
+    #     detections = {}
 
     # opencv face detector
     modelFile = "models/opencv_face_detector_uint8.pb"
@@ -103,8 +98,8 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_p
         # detections[os.path.abspath(f)] = (locs, descs)
         # utils.show_detections_on_image(detections[os.path.abspath(f)][0], f)
         # utils.show_detections_on_image(detections[os.path.abspath(f)][0] + locs, f)
-        if detections.get(os.path.abspath(f)) != None:
-          locs, descs = utils.merge_detections(detections[os.path.abspath(f)][0], detections[os.path.abspath(f)][1], locs, descs)
+        # if detections.get(os.path.abspath(f)) != None:
+        #   locs, descs = utils.merge_detections(detections[os.path.abspath(f)][0], detections[os.path.abspath(f)][1], locs, descs)
 
         # utils.show_detections_on_image(detections[os.path.abspath(f)][0], f)
 
@@ -112,8 +107,6 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, output_p
         timeStamp = utils.get_timestamp(f)
         cls = 'detected'
         for l,d in zip(locs, descs):
-          if preds_per_person.get(cls) == None:
-            preds_per_person[cls] = []
           utils.add_new_face(preds_per_person, faces_files, cls, l, d, f, timeStamp)
 
         detection_status[f] = {'cv2': 1, 'dlib': 1}
@@ -149,8 +142,8 @@ def main():
                         help="Input image directory. Recursive processing is supported.")
     parser.add_argument('--imgs_root', type=str, required=True,
                         help="Root directory of your image library.")
-    parser.add_argument('--outdir', type=str, required=True,
-                        help="Output directory.")
+    # parser.add_argument('--outdir', type=str, required=True,
+    #                     help="Output directory.")
     parser.add_argument('--db', type=str, required=True,
                         help="Path to folder with predicted faces (.csv files).")
     parser.add_argument('--recompute', help='Recompute detections.',
@@ -161,8 +154,8 @@ def main():
         print('args.input needs to be a valid folder containing images')
         exit()
 
-    if not os.path.isdir(args.outdir):
-        utils.mkdir_p(args.outdir)
+    # if not os.path.isdir(args.outdir):
+    #     utils.mkdir_p(args.outdir)
 
     print('Detecting faces in {}'.format(args.input))
     detect_faces(args)

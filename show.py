@@ -91,13 +91,10 @@ def main():
                       help="Path to svm model file (e.g. svm.clf).")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
-  parser.add_argument('--dets', type=str, required=False, default=None,
-                      help="Root path of the detections.bin files.")
   parser.add_argument('--mask_folder', type=str, required=False, default=None,
                       help="Mask folder for faces. Only faces of images within this folder will be shown.")
   args = parser.parse_args()
 
-  #TODO: remove dets
   if not os.path.isdir(args.db):
       print('args.db is not a valid directory')
 

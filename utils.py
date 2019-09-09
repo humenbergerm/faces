@@ -65,6 +65,8 @@ def export_persons_to_csv(preds_per_person, preds_per_person_path):
   if len(preds_per_person) == 0:
     print('nothing to export, preds_per_person is empty')
     return
+  if not os.path.isdir(preds_per_person_path):
+    os.makedirs(preds_per_person_path)
   for p in preds_per_person:
     if len(preds_per_person[p]) == 0:
       print('No faces found in {}. Files will be deleted.'.format(p))
@@ -337,8 +339,10 @@ def add_new_face(preds_per_person, faces_files, cls, loc, desc, f, timeStamp):
       if np.linalg.norm(desc - preds_per_person[c][i][2]) == 0:
         print('face found in class {}'.format(c)) # if the face was found, skip it
         return
-  print('added new face to {}'.format(cls))
+  if preds_per_person.get(cls) == None:
+    preds_per_person[cls] = []
   preds_per_person[cls].append([(cls, loc), f, desc, 0, timeStamp])
+  print('added new face to {}'.format(cls))
 
 def count_preds_status(preds_per_person):
   count_ignored = 0
@@ -371,7 +375,7 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
         preds_per_person[new_name] = []
       insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
       # delete pred in current list
-      delete_element_preds_per_person(preds_per_person, cls, ix)
+      preds_per_person[cls].pop(ix)
       print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 109:  # key 'm'
     new_name = guided_input(preds_per_person)
@@ -387,7 +391,7 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
       preds_per_person[new_name] = []
     insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
     # delete pred in current list
-    delete_element_preds_per_person(preds_per_person, cls, ix)
+    preds_per_person[cls].pop(ix)
     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 47:  # key '/'
     save.append(copy.deepcopy(preds_per_person))
@@ -402,7 +406,7 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     new_name = names[key - 48]
     insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
     # delete pred in current list
-    delete_element_preds_per_person(preds_per_person, cls, ix)
+    preds_per_person[cls].pop(ix)
     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 100:  # key 'd'
     save.append(copy.deepcopy(preds_per_person))
@@ -419,9 +423,9 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     save.append(copy.deepcopy(preds_per_person))
     for f in faces_files[preds_per_person[cls][ix][1]]:
       del_cls, del_i = f
-      if del_cls == 'unknown' or del_cls == 'detected':
-        delete_element_preds_per_person(preds_per_person, del_cls, del_i)
-    print('all faces in {} deleted'.format(preds_per_person[cls][ix][1]))
+      # if del_cls == 'unknown' or del_cls == 'detected':
+      delete_element_preds_per_person(preds_per_person, del_cls, del_i)
+    print('all faces in deleted.')
     # delete detections as well
     # if len(dets) != 0:
     #   delete_detections_of_file(dets, preds_per_person[cls][ix][1])
@@ -553,6 +557,7 @@ def draw_rect(image, loc, scale, color):
 def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image):
   for i in face_indices:
     cls, idx = i
+    # print(cls)
     if cls == 'unknown':
       color = (0, 0, 255) # red
     elif cls == 'deleted':

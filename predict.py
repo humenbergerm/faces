@@ -6,12 +6,17 @@ import subprocess
 
 import utils
 
-def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_clf):
+def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_clf, faces_files):
 
   # names, probs = utils.predict_face_svm(preds_per_person[name][ins][2], svm_clf)
 
-  key = utils.show_prediction_labels_on_image(predictions, None, preds_per_person[name][ins][3], i,
-                                              preds_per_person[name][ins][1], '', force_name=name)
+  # key = utils.show_prediction_labels_on_image(predictions, None, preds_per_person[name][ins][3], i,
+  #                                             preds_per_person[name][ins][1], '', force_name=name)
+
+  image_path = preds_per_person[name][i][1]
+  key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, name, i, preds_per_person,
+                                                                             faces_files[image_path], image_path,
+                                                                             waitkey=True)
 
   if key == 99:  # key 'c'
     new_name = utils.guided_input(preds_per_person)
@@ -65,9 +70,10 @@ def confirm_face(preds_per_person, predictions, name, i, ins, names, args, svm_c
 
 def predict_class(args, knn_clf, svm_clf):
 
-  cls = args.detections
+  cls = args.cls
   print('Detecting faces in class {} using knn.'.format(cls))
   preds_per_person = utils.load_faces_from_csv(args.db)
+  faces_files = utils.get_faces_in_files(preds_per_person)
 
   face_locations = []
   face_encodings = []
@@ -94,43 +100,63 @@ def predict_class(args, knn_clf, svm_clf):
   unknown_counter = 0
   new_counter = 0
   known_counter = 0
-  pos = 0
 
-  for i, (name, (top, right, bottom, left)) in enumerate(predictions):
+  ix = 0
+  key = 0
+  save = []
+  nr_of_faces = len(preds_per_person[cls])
 
-    names, probs = utils.predict_face_svm(preds_per_person[cls][pos][2], svm_clf, print_top=True)
+  while key != 27 and nr_of_faces > 0:
+
+    nr_of_faces = len(preds_per_person[cls])  # because it might have changed (e.g. if a face got deleted)
+    if nr_of_faces == 0:
+      print('no more faces of class {} found'.format(cls))
+      break
+
+    if ix >= nr_of_faces:
+      ix = 0
+    elif ix < 0:
+      ix = nr_of_faces - 1
+
+    name, (top, right, bottom, left) = predictions[ix]
+
+    while len(save) > 10:
+      save.pop(0)
+
+    names, probs = utils.predict_face_svm(preds_per_person[cls][ix][2], svm_clf, print_top=True)
     if name == "unknown":
       if probs[0] >= 0.95:
         name = names[0]
         print('{} > 0.95'.format(name))
       else:
         unknown_counter += 1
-        pos += 1
 
     if name != cls:
-      if args.confirm:
-        save = copy.deepcopy(preds_per_person)
-      # move to new class
       new_counter += 1
-      tmp = preds_per_person[cls][pos]
-      if preds_per_person.get(name) == None:
-        preds_per_person[name] = []
-      preds_per_person[name].append(((name, tmp[0][1]), tmp[1], tmp[2], tmp[3], tmp[4]))
-      preds_per_person[cls].pop(pos) # this is why pos is needed
-      print('{} found'.format(name))
-
       if args.confirm:
-        repeat = True
-        while repeat == True:
-          key = confirm_face(preds_per_person, predictions, name, i, -1, names, args, svm_clf)
-          if key == 27: # key 'esc'
-            preds_per_person = save
-            utils.export_persons_to_csv(preds_per_person, args.db)
-            return 0
-          else:
-            repeat = False
+        image_path = preds_per_person[name][ix][1]
+        key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, name, ix,
+                                                                                   preds_per_person,
+                                                                                   faces_files[image_path], image_path,
+                                                                                   waitkey=True)
+        utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files)
+        if key == 46 or key == 47:  # key '.' or key '/'
+          ix += 1
+        elif key == 44:  # key ','
+          ix -= 1
+        elif key == 98:  # key 'b'
+          if len(save) > 0:
+            preds_per_person = copy.deepcopy(save.pop())
+            print("undone last action")
+      else:
+        # move to new class
+        utils.insert_element_preds_per_person(preds_per_person, cls, ix, name, conf=0)
+        preds_per_person[cls].pop(ix)
+        print('{} found'.format(name))
+
     else:
       known_counter += 1
+      ix += 1
 
   utils.export_persons_to_csv(preds_per_person, args.db)
 
@@ -247,8 +273,8 @@ def predict_faces(args, knn_clf, svm_clf, detections):
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--detections', type=str, required=True,
-                      help="Path to detections.bin file(s) or name of an already predicted class, such as unknown.")
+  parser.add_argument('--cls', type=str, required=True,
+                      help="Class to predict, such as unknown or detected.")
   parser.add_argument('--knn', type=str, required=True,
                       help="Path to knn model file (e.g. knn.clf).")
   parser.add_argument('--svm', type=str, required=True,
@@ -285,16 +311,16 @@ def main():
   #     exit()
 
   # TODO: use predict_class only
-  if os.path.isdir(args.detections):
-    print('Predicting faces in {}'.format(args.detections))
-    detections, det_file_map = utils.load_detections_as_single_dict(args.detections)
-    predict_faces(args, knn_clf, svm_clf, detections)
-  elif os.path.isfile(args.detections):
-    detections = pickle.load(open(args.detections, "rb"))
-    predict_faces(args, knn_clf, svm_clf, detections)
-  else:
-    print('Predicting faces of class {}'.format(args.detections))
-    predict_class(args, knn_clf, svm_clf)
+  # if os.path.isdir(args.detections):
+  #   print('Predicting faces in {}'.format(args.detections))
+  #   detections, det_file_map = utils.load_detections_as_single_dict(args.detections)
+  #   predict_faces(args, knn_clf, svm_clf, detections)
+  # elif os.path.isfile(args.detections):
+  #   detections = pickle.load(open(args.detections, "rb"))
+  #   predict_faces(args, knn_clf, svm_clf, detections)
+  # else:
+  print('Predicting faces of class {}'.format(args.cls))
+  predict_class(args, knn_clf, svm_clf)
 
   print('Done.')
 
