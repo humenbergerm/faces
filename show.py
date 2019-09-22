@@ -9,9 +9,36 @@ import subprocess
 
 import utils
 
+def increment_from(start, preds_per_person, cls, mask, nr_of_faces):
+  ix = start + 1
+  while mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix < nr_of_faces - 1:
+    ix += 1
+  if ix >= nr_of_faces - 1:
+    if utils.get_nr_after_filter(mask, preds_per_person[cls]) == 0:
+      return 0, False
+    else:
+      # return 0, True # roll over to zero
+      return increment_from(-1, preds_per_person, cls, mask, nr_of_faces)
+  else:
+    return ix, True
+
+def decrement_from(start, preds_per_person, cls, mask, nr_of_faces):
+  ix = start - 1
+  while mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix >= 0:
+    ix -= 1
+  if ix <= 0:
+    if utils.get_nr_after_filter(mask, preds_per_person[cls]) == 0:
+      return 0, False
+    else:
+      # return nr_of_faces - 1, True # roll over to the end
+      return decrement_from(nr_of_faces, preds_per_person, cls, mask, nr_of_faces)
+  else:
+    return ix, True
+
 def show_class(args, svm_clf):
 
     preds_per_person = utils.load_faces_from_csv(args.db)
+    mask = utils.filter_faces(args, preds_per_person)
 
     if args.face == 'all':
         classes = preds_per_person
@@ -40,11 +67,21 @@ def show_class(args, svm_clf):
 
             faces_files = utils.get_faces_in_files(preds_per_person)
 
+            while ix <= nr_of_faces-1 and ix >= 0:
+              if mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1:
+                ix += 1
+              else:
+                break
+
             if ix >= nr_of_faces:
-                ix = 0
+              ix, ret = increment_from(nr_of_faces-2, preds_per_person, cls, mask, nr_of_faces)
+              if not ret:
+                break
 
             elif ix < 0:
-                ix = nr_of_faces-1
+              ix, ret = decrement_from(-1, preds_per_person, cls, mask, nr_of_faces)
+              if not ret:
+                break
 
             # if mask folder is provided, show only faces within this folder
             if args.mask_folder != None:
@@ -56,6 +93,14 @@ def show_class(args, svm_clf):
                     print('no more faces of class {} found in {}'.format(cls, args.mask_folder))
                     break
 
+            # # skip all faces which do not meet the filter criteria
+            # while mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix < nr_of_faces - 1:
+            #   ix += 1
+            # # check if the face at ix belongs to mask_folder, if not, exit
+            # if mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix == nr_of_faces - 1:
+            #   print('no more faces of class {} found which meet the filter criteria'.format(cls))
+            #   break
+
             while len(save) > 10:
                 save.pop(0)
 
@@ -64,13 +109,21 @@ def show_class(args, svm_clf):
 
             names, probs = utils.predict_face_svm(preds_per_person[cls][ix][2], svm_clf)
 
-            str_count = str(ix + 1) + ' / ' + str(len(preds_per_person[cls]))
+            str_count = str(ix + 1) + ' / ' + str(utils.get_nr_after_filter(mask, preds_per_person[cls]))
             key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, cls, ix, preds_per_person, faces_files[image_path], image_path, waitkey=True, text=str_count)
-            utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files)
+            deleted_elem_of_cls = utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files)
+
+            if deleted_elem_of_cls > 0 and clicked_idx <= ix and clicked_class == cls:
+              ix -= deleted_elem_of_cls
+
             if key == 46 or key == 47: # key '.' or key '/'
-                ix += 1
+                ix, ret = increment_from(ix, preds_per_person, cls, mask, nr_of_faces)
+                if not ret:
+                  break
             elif key == 44: # key ','
-                ix -= 1
+                ix, ret = decrement_from(ix, preds_per_person, cls, mask, nr_of_faces)
+                if not ret:
+                  break
             elif key == 114: # key 'r'
                 ix = random.randint(0, nr_of_faces-1)
             elif key == 102: #key 'f'
@@ -93,6 +146,8 @@ def main():
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--mask_folder', type=str, required=False, default=None,
                       help="Mask folder for faces. Only faces of images within this folder will be shown.")
+  parser.add_argument('--min_size', type=str, required=False, default=0,
+                      help="Defines the min. size of a face. A face will be accepted if it is larger than min_size * img_height (img_width resp.)")
   args = parser.parse_args()
 
   if not os.path.isdir(args.db):

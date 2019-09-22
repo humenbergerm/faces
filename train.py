@@ -60,11 +60,12 @@ def train(args):
 
   # Determine how many neighbors to use for weighting in the KNN classifier
   n_neighbors = int(round(math.sqrt(len(X))))
+  # n_neighbors = 100
   print("Chose n_neighbors automatically:", n_neighbors)
 
   # Create and train the KNN classifier
   print("Training model with KNN ...")
-  knn_clf = neighbors.KNeighborsClassifier(n_neighbors=n_neighbors, algorithm='ball_tree', weights='distance')
+  knn_clf = neighbors.KNeighborsClassifier(n_neighbors=n_neighbors, algorithm='auto', weights='distance')
   knn_clf.fit(X, y)
 
   # Save the trained KNN classifier

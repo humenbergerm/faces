@@ -97,6 +97,7 @@ def export_face_to_csv(preds_per_person_path, preds_per_person, face):
     header.append('image path')
     header.append('flag')
     header.append('timestamp')
+    header.append('imagesize')
     filewriter.writerow(header)
     for c in preds_per_person[face]:
       face_row = []
@@ -135,7 +136,6 @@ def load_faces_from_csv(preds_per_person_path):
     return preds_per_person
   for f in csv_files:
     name = os.path.splitext(os.path.basename(f))[0]
-    print('loading {}'.format(name))
     descs = pickle.load(open(os.path.join(preds_per_person_path, name + '.bin'), "rb"))
     if 1:
       for i in bin_files:
@@ -158,7 +158,7 @@ def load_faces_from_csv(preds_per_person_path):
           row_str = row[0].split(';')
           face_loc = row_str[0], tuple(map(int, row_str[1].split(' ')))
           img_name = os.path.basename(row_str[2])
-        elif len(row) == 5:
+        elif len(row) == 6:
           face_loc = row[0], tuple(map(int, row[1].split(' ')))
           img_name = os.path.basename(row[2])
         else:
@@ -171,13 +171,42 @@ def load_faces_from_csv(preds_per_person_path):
         if len(found_face) != 0:
           if os.path.isfile(found_face[1]):
             preds_per_person[name].append(
-              ((name, face_loc[1]), found_face[1], found_face[2], found_face[3], found_face[4]))
+              ((name, face_loc[1]), found_face[1], found_face[2], found_face[3], found_face[4], found_face[5]))
           else:
             print('file {} does not exist'.format(found_face[1]))
         else:
           print('{} not found'.format(img_name))
 
+      print('loaded {} ({})'.format(name, len(preds_per_person[name])))
+
   return preds_per_person
+
+def get_nr_after_filter(mask, preds_class):
+  counter = 0
+  for i in preds_class:
+    if mask[i[1]][i[0][1]] == 1:
+      counter += 1
+
+  return counter
+
+def filter_faces(args, preds_per_person):
+
+  mask = {}
+  for p in preds_per_person:
+    for n,i in enumerate(preds_per_person[p]):
+      loc = i[0][1]
+      imgsize = i[5]
+      filename = i[1]
+
+      if mask.get(filename) == None:
+        mask[filename] = {}
+
+      if filter_face_size(loc, imgsize, float(args.min_size)):
+        mask[filename][loc] = 1
+      else:
+        mask[filename][loc] = 0
+
+  return mask
 
 def get_folders_in_path(path):
   entries = os.listdir(os.path.normpath(path))
@@ -237,6 +266,18 @@ def resizeCV(img, h):
 
   return cv2.resize(img, (int(width), int(height)))
 
+def filter_face_size(loc, imgsize, thresh=0):
+
+  # loc = (top, right, bottom, left)
+  roi_w = loc[1] - loc[3]
+  roi_h = loc[2] - loc[0]
+  img_h, img_w = imgsize[:-1]
+
+  if roi_w >= thresh*img_w and roi_h >= thresh*img_h:
+    return True
+  else:
+    return False
+
 def is_valid_roi(x, y, w, h, img_shape):
   if x >= 0 and x < img_shape[1] and \
     y >= 0 and y < img_shape[0] and \
@@ -276,7 +317,7 @@ def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=Fals
     descriptors.append(np.array(face_descriptor))
     locations.append((d.top(), d.right(), d.bottom(), d.left()))
 
-  return locations, descriptors
+  return locations, descriptors, img.shape
 
 def detect_faces_in_image_cv2(img_path, net, facerec, sp, detector):
   opencvImage = cv2.imread(img_path)
@@ -296,9 +337,9 @@ def detect_faces_in_image_cv2(img_path, net, facerec, sp, detector):
       d = dlib.rectangle(x1, y1, x2, y2)
       dets.append(d)
 
-  locations, descriptors = detect_faces_in_image(img_path, detector, facerec, sp, dets=dets)
+  locations, descriptors, imagesize = detect_faces_in_image(img_path, detector, facerec, sp, dets=dets)
 
-  return locations, descriptors
+  return locations, descriptors, imagesize
 
 def initialize_face_data(preds_per_person, cls):
   face_locations = []
@@ -324,15 +365,18 @@ def move_class(preds_per_person, cls, new_cls):
 
     preds_per_person[cls] = []
 
-def insert_element_preds_per_person(preds_per_person, cls, ix, new_cls, conf=-1):
-  tmp = preds_per_person[cls][ix]
+def insert_element_preds_per_person(preds_per_person, cls, ix, new_cls, conf=-1, new_face=None):
+  if new_face == None:
+    tmp = preds_per_person[cls][ix]
+  else:
+    tmp = new_face
   if conf == -1:
     conf = tmp[3]
   if preds_per_person.get(new_cls) == None:
     preds_per_person[new_cls] = []
-  preds_per_person[new_cls].append(((new_cls, tmp[0][1]), tmp[1], tmp[2], conf, tmp[4]))
+  preds_per_person[new_cls].append(((new_cls, tmp[0][1]), tmp[1], tmp[2], conf, tmp[4], tmp[5]))
 
-def add_new_face(preds_per_person, faces_files, cls, loc, desc, f, timeStamp):
+def add_new_face(preds_per_person, faces_files, cls, loc, desc, f, timeStamp, imagesize):
   if faces_files.get(f) != None: # if there is no face detected yet, there won't be an entry in face_files -> directly add new face
     for p in faces_files[f]:
       c, i = p
@@ -341,7 +385,7 @@ def add_new_face(preds_per_person, faces_files, cls, loc, desc, f, timeStamp):
         return
   if preds_per_person.get(cls) == None:
     preds_per_person[cls] = []
-  preds_per_person[cls].append([(cls, loc), f, desc, 0, timeStamp])
+  preds_per_person[cls].append([(cls, loc), f, desc, 0, timeStamp, imagesize])
   print('added new face to {}'.format(cls))
 
 def count_preds_status(preds_per_person):
@@ -366,6 +410,7 @@ def resizeCV(img, w):
   return cv2.resize(img, (int(width), int(height)))
 
 def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files):
+  deleted_elem_of_cls = 0
   if key == 99:  # key 'c'
     new_name = guided_input(preds_per_person)
     if new_name != "":
@@ -376,6 +421,7 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
       insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
       # delete pred in current list
       preds_per_person[cls].pop(ix)
+      deleted_elem_of_cls = 1
       print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 109:  # key 'm'
     new_name = guided_input(preds_per_person)
@@ -392,12 +438,13 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
     # delete pred in current list
     preds_per_person[cls].pop(ix)
+    deleted_elem_of_cls = 1
     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 47:  # key '/'
     save.append(copy.deepcopy(preds_per_person))
     tmp = preds_per_person[cls][ix]
     if tmp[3] == 0:
-      preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 1, tmp[4]
+      preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 1, tmp[4], tmp[5]
     elif tmp[3] == 1:
       preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 0, tmp[4]
     print("face confirmed: {} ({})".format(tmp[0], len(preds_per_person[cls])))
@@ -407,48 +454,28 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
     # delete pred in current list
     preds_per_person[cls].pop(ix)
+    deleted_elem_of_cls = 1
     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 100:  # key 'd'
     save.append(copy.deepcopy(preds_per_person))
-    # new_name = 'deleted'
-    # add pred in new list
-    # insert_element_preds_per_person(preds_per_person, cls, ix, new_name)
     # delete pred in current list
     delete_element_preds_per_person(preds_per_person, cls, ix)
+    deleted_elem_of_cls = 1
     print("face deleted")
   elif key == 116:  # key 't'
     subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
   elif key == 97:  # key 'a'
-    # delete all 'unknown' or 'detected' faces in the current image
     save.append(copy.deepcopy(preds_per_person))
     for f in faces_files[preds_per_person[cls][ix][1]]:
       del_cls, del_i = f
-      # if del_cls == 'unknown' or del_cls == 'detected':
       delete_element_preds_per_person(preds_per_person, del_cls, del_i)
+      if del_cls == cls and del_i <= ix:
+        deleted_elem_of_cls += 1
     print('all faces in deleted.')
-    # delete detections as well
-    # if len(dets) != 0:
-    #   delete_detections_of_file(dets, preds_per_person[cls][ix][1])
-    #   print("all faces in {} deleted".format(preds_per_person[cls][ix][1]))
-    # else:
-    #   print('detections not deleted from detections.bin')
-  # elif key == 105:  # key 'i'
-  #   # delete all faces in the current image AND set it to be ignored in the future (also for detection)
-  #   save.append(copy.deepcopy(preds_per_person))
-  #   for f in faces_files[preds_per_person[cls][ix][1]]:
-  #     del_cls, del_i = f
-  #     delete_element_preds_per_person(preds_per_person, del_cls, del_i)
-  #   # ignore detections in the future
-  #   if len(dets) != 0:
-  #     ignore_detections_of_file(dets, preds_per_person[cls][ix][1])
-  #     # print("all faces in {} deleted and image will be ignored".format(image_path))
-  #   else:
-  #     print('detections not deleted from detections.bin')
   elif key == 115:  # key 's'
     export_persons_to_csv(preds_per_person, args.db)
-    # if args.dets != None:
-    #   save_detections(dets, det_file_map)
     print('saved')
+  return deleted_elem_of_cls
 
 def get_rect_from_pts(pts, ws):
   top = min(pts[0][1], pts[1][1])
@@ -472,7 +499,8 @@ def click(event, x, y, flags, params):
 
   image = params[0]
   preds_per_person = params[1]
-  face_indices = params[2]
+  face_files = get_faces_in_files(preds_per_person)
+  face_indices = face_files[preds_per_person[clicked_cls][clicked_idx][1]]
   ws = params[3]
   svm_clf = params[4]
   main_face = params[5]
@@ -494,6 +522,7 @@ def click(event, x, y, flags, params):
         clicked_cls = cls
         clicked_idx = idx
         print('clicked class: {}, clicked index: {}'.format(clicked_cls, clicked_idx))
+        print(preds_per_person[clicked_cls][clicked_idx][1])
         clicked_names, probs = predict_face_svm(preds_per_person[clicked_cls][clicked_idx][2], svm_clf)
         break
       # else:
@@ -509,7 +538,8 @@ def click(event, x, y, flags, params):
     if p.area >= 10:
       cv2.imshow("faces", image)
       cv2.waitKey(1)
-      new_name = guided_input(preds_per_person)
+      # new_name = guided_input(preds_per_person)
+      new_name = 'unknown'
       if new_name != "":
         new_loc = get_rect_from_pts(refPt, ws) # order in preds_per_person: (top(), right(), bottom(), left())
         d = dlib.rectangle(new_loc[3], new_loc[0], new_loc[1], new_loc[2])
@@ -519,7 +549,7 @@ def click(event, x, y, flags, params):
         new_desc = np.array(face_descriptor)
         if preds_per_person.get(new_name) == None:
           preds_per_person[new_name] = []
-        preds_per_person[new_name].append(((new_name, new_loc), preds_per_person[main_face][main_idx][1], new_desc, 1, preds_per_person[main_face][main_idx][4]))
+        preds_per_person[new_name].append(((new_name, new_loc), preds_per_person[main_face][main_idx][1], new_desc, 1, preds_per_person[main_face][main_idx][4], opencvImage.shape))
         print('New face {} added.'.format(new_name))
     refPt = []
 

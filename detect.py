@@ -80,11 +80,11 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, detectio
         #     # utils.show_detections_on_image(locs, f)
         #     continue
 
-        locations_cv2, descriptors_cv2 = utils.detect_faces_in_image_cv2(f, net, facerec, sp, detector)
+        locations_cv2, descriptors_cv2, imagesize = utils.detect_faces_in_image_cv2(f, net, facerec, sp, detector)
         print('cv2: {} detection(s) found'.format(len(locations_cv2)))
         # utils.show_detections_on_image(locations_cv2, f)
 
-        locations, descriptors = utils.detect_faces_in_image(f, detector, facerec, sp)
+        locations, descriptors, imagesize = utils.detect_faces_in_image(f, detector, facerec, sp)
         print('dlib: {} detection(s) found'.format(len(locations)))
         # utils.show_detections_on_image(locations, f)
 
@@ -107,7 +107,7 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, detectio
         timeStamp = utils.get_timestamp(f)
         cls = 'detected'
         for l,d in zip(locs, descs):
-          utils.add_new_face(preds_per_person, faces_files, cls, l, d, f, timeStamp)
+          utils.add_new_face(preds_per_person, faces_files, cls, l, d, f, timeStamp, imagesize)
 
         detection_status[f] = {'cv2': 1, 'dlib': 1}
 
@@ -117,18 +117,10 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, detectio
             pickle.dump(detection_status, fp)
           changed = False
 
-    #         check_detections(detections)
-    #         with open(detections_path, "wb") as fp:
-    #             pickle.dump(detections, fp)
-    #             print('saved')
-    #
-    # with open(detections_path, "wb") as fp:
     if changed:
       utils.export_persons_to_csv(preds_per_person, args.db)
       with open(detection_status_file, 'wb') as fp:
         pickle.dump(detection_status, fp)
-    #     check_detections(detections)
-    #     pickle.dump(detections, fp)
 
 def check_detections(detections):
   for d in list(detections):
