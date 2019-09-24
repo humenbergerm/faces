@@ -2,7 +2,9 @@ import os.path
 import argparse
 import json
 import dlib
-#import subprocess
+import cv2
+from PIL import Image
+import subprocess
 
 import utils
 import exif
@@ -152,10 +154,55 @@ def export_face_crops(args):
       else:
         utils.save_face_crop_aligned(sp, face_path, f[1], f[0][1])
 
+def export_thumbnails(args):
+  import piexif
+
+  preds_per_person = utils.load_faces_from_csv(args.db)
+  files_faces = utils.get_faces_in_files(preds_per_person)
+  if len(preds_per_person) == 0:
+    print('no faces loaded')
+    exit()
+
+  face_prefix = 'f '
+  size = (512, 512)
+
+  for f in files_faces:
+    rel_path = os.path.relpath(f, args.imgs_root)
+    out_path = os.path.join(args.outdir, rel_path)
+    if os.path.isfile(out_path):
+      continue
+    print('Writing {}'.format(f))
+    if not os.path.isdir(os.path.dirname(out_path)):
+      os.makedirs(os.path.dirname(out_path))
+
+    # keywords = []
+    # for i in files_faces[f]:
+    #   cls, idx = i
+    #   if cls != 'unknown' and cls != 'detected' and cls != 'deleted':
+    #     keywords.append(face_prefix + cls)
+
+    # if not os.path.isfile(out_path):
+    im = Image.open(f)
+    im.thumbnail(size, Image.ANTIALIAS)
+    im.save(out_path)
+    piexif.transplant(f, out_path)
+    # ex = exif.ExifEditor(f)
+    # tags = ex.getDictTags()
+    # tags['SourceFile'] = out_path
+    # tags['Directory'] = os.path.dirname(out_path)
+    # tags['FileName'] = os.path.basename(out_path)
+    # tags['UserComment'] = ''
+    # tags['XPKeywords'] = ''
+    # tags['LastKeywordIPTC'] = ''
+    # tags['LastKeywordXMP'] = ''
+    # ex = exif.ExifEditor(out_path)
+    # ex.setTags(tags)
+    # ex.setKeywords(keywords)
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--method', type=str, required=True,
-                      help="Method of export: 0 ... album, 1 ... exif, 2 ... face crops to folder")
+                      help="Method of export: 0 ... album, 1 ... exif, 2 ... face crops to folder, 3 ... thumbnails")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--outdir', type=str,
@@ -201,6 +248,14 @@ def main():
       utils.mkdir_p(args.outdir)
     print('Exporting all face crops to {}.'.format(args.outdir))
     export_face_crops(args)
+  elif args.method == '3':
+    if args.outdir == None:
+      print('Provide output directory.')
+      exit()
+    if not os.path.isdir(args.outdir):
+      utils.mkdir_p(args.outdir)
+    print('Exporting all face pictures as low quality thumbails to {}.'.format(args.outdir))
+    export_thumbnails(args)
 
   print('Done.')
 
