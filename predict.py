@@ -10,7 +10,11 @@ def predict_class(args, knn_clf, svm_clf):
 
   cls = args.cls
   print('Detecting faces in class {} using knn.'.format(cls))
-  preds_per_person = utils.load_faces_from_csv(args.db)
+  preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
+
+  if preds_per_person.get(cls) == None:
+    print('class {} not found'.format(cls))
+    exit()
 
   face_locations = []
   face_encodings = []
@@ -77,7 +81,7 @@ def predict_class(args, knn_clf, svm_clf):
         key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, cls, ix,
                                                                                    preds_per_person,
                                                                                    faces_files[image_path], image_path,
-                                                                                   waitkey=True)
+                                                                                   waitkey=True, text=name)
         deleted_elem_of_cls = utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files)
 
         if deleted_elem_of_cls > 0 and clicked_idx <= ix and clicked_class == cls:
@@ -91,6 +95,10 @@ def predict_class(args, knn_clf, svm_clf):
           if len(save) > 0:
             preds_per_person = copy.deepcopy(save.pop())
             print("undone last action")
+        elif key == 111: # 'o'
+          # move to new class
+          utils.insert_element_preds_per_person(preds_per_person, cls, ix, name, conf=1)
+          preds_per_person[cls].pop(ix)
       else:
         # move to new class
         utils.insert_element_preds_per_person(preds_per_person, cls, ix, name, conf=0)
@@ -98,7 +106,7 @@ def predict_class(args, knn_clf, svm_clf):
     else:
       ix += 1
 
-  utils.export_persons_to_csv(preds_per_person, args.db)
+  utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
 
 def main():
   parser = argparse.ArgumentParser()
@@ -110,6 +118,8 @@ def main():
                       help="Path to svm model file (e.g. svm.clf).")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
+  parser.add_argument('--imgs_root', type=str, required=True,
+                      help="Root directory of your image library.")
   parser.add_argument('--confirm', help='Each newly found face needs to be confirmed.',
                       action='store_true')
   args = parser.parse_args()

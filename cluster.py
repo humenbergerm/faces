@@ -9,7 +9,7 @@ import numpy as np
 import utils
 
 def cluster_faces_in_class(args):
-  preds_per_person = utils.load_faces_from_csv(args.db)
+  preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
   if preds_per_person.get(args.cls) == None:
     print('Class {} not found.'.format(args.cls))
     return
@@ -83,7 +83,7 @@ def cluster_faces_in_class(args):
     preds_per_person[cls].pop(i) # if not, they would exist double, in 'deleted' and in the cluster group
     # utils.delete_element_preds_per_person(preds_per_person, args.cls, i)
 
-  utils.export_persons_to_csv(preds_per_person, args.db)
+  utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
 
 def main():
   parser = argparse.ArgumentParser()
@@ -99,6 +99,8 @@ def main():
                       help="Maximum number of clusters to be exported.")
   parser.add_argument('--db', type=str, required=False,
                       help="Path to folder with predicted faces (.csv files).")
+  parser.add_argument('--imgs_root', type=str, required=True,
+                      help="Root directory of your image library.")
   # parser.add_argument('--recompute', help='Recompute clustering.',
   #                     action='store_true')
   parser.add_argument('--export', help='Export clusters to folders.',

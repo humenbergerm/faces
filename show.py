@@ -11,6 +11,8 @@ import utils
 
 def increment_from(start, preds_per_person, cls, mask, nr_of_faces):
   ix = start + 1
+  if ix >= nr_of_faces:
+    return 0, True
   while mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix < nr_of_faces - 1:
     ix += 1
   if ix >= nr_of_faces - 1:
@@ -24,6 +26,8 @@ def increment_from(start, preds_per_person, cls, mask, nr_of_faces):
 
 def decrement_from(start, preds_per_person, cls, mask, nr_of_faces):
   ix = start - 1
+  if ix < 0:
+    return nr_of_faces-1, True
   while mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix >= 0:
     ix -= 1
   if ix <= 0:
@@ -35,9 +39,57 @@ def decrement_from(start, preds_per_person, cls, mask, nr_of_faces):
   else:
     return ix, True
 
+def show_folder(args, svm_clf):
+
+  preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
+
+  save = []
+  key = 0
+  i = 0
+  while key != 27:
+
+    faces_files = utils.get_faces_in_files(preds_per_person, args.face)
+
+    if i <= 0:
+      i = len(faces_files)-1
+    if i > len(faces_files)-1:
+      i = 0
+
+    image_path = sorted(faces_files.items())[i][0]
+    nr_of_faces = len(sorted(faces_files.items())[i][1])
+    print(image_path)
+
+    if nr_of_faces != 0:
+      cls, ix = sorted(faces_files.items())[i][1][0]
+
+      # names, probs = utils.predict_face_svm(preds_per_person[cls][ix][2], svm_clf)
+      names = probs = []
+
+      str_count = str(i + 1) + ' / ' + str(len(faces_files))
+      key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, cls, ix,
+                                                                                 preds_per_person,
+                                                                                 faces_files[image_path], image_path,
+                                                                                 waitkey=True, text=str_count, draw_main_face=False)
+      utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files)
+
+      if key == 46 or key == 47:  # key '.' or key '/'
+        i += 1
+      elif key == 44:  # key ','
+        i -= 1
+      elif key == 114:  # key 'r'
+        i = random.randint(0, len(faces_files[i]) - 1)
+      elif key == 98:  # key 'b'
+        if len(save) > 0:
+          preds_per_person = copy.deepcopy(save.pop())
+          print("undone last action")
+      # else:
+      #   faces_files = utils.get_faces_in_files(preds_per_person, args.face)
+
+  utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
+
 def show_class(args, svm_clf):
 
-    preds_per_person = utils.load_faces_from_csv(args.db)
+    preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
     mask = utils.filter_faces(args, preds_per_person)
 
     if args.face == 'all':
@@ -115,6 +167,7 @@ def show_class(args, svm_clf):
 
             if deleted_elem_of_cls > 0 and clicked_idx <= ix and clicked_class == cls:
               ix -= deleted_elem_of_cls
+              # nr_of_faces = len(preds_per_person[cls])
 
             if key == 46 or key == 47: # key '.' or key '/'
                 ix, ret = increment_from(ix, preds_per_person, cls, mask, nr_of_faces)
@@ -134,7 +187,7 @@ def show_class(args, svm_clf):
                     preds_per_person = copy.deepcopy(save.pop())
                     print("undone last action")
 
-        utils.export_persons_to_csv(preds_per_person, args.db)
+        utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
 
 def main():
   parser = argparse.ArgumentParser()
@@ -144,6 +197,8 @@ def main():
                       help="Path to svm model file (e.g. svm.clf).")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
+  parser.add_argument('--imgs_root', type=str, required=True,
+                      help="Root directory of your image library.")
   parser.add_argument('--mask_folder', type=str, required=False, default=None,
                       help="Mask folder for faces. Only faces of images within this folder will be shown.")
   parser.add_argument('--min_size', type=str, required=False, default=0,
@@ -160,8 +215,13 @@ def main():
       print('args.svm ({}) is not a valid file'.format(args.svm))
       exit()
 
-  print('Showing detections of class {}'.format(args.face))
-  show_class(args, svm_clf)
+  if os.path.isdir(args.face):
+    print('Showing detections of folder {}'.format(args.face))
+    show_folder(args, svm_clf)
+  else:
+    print('Showing detections of class {}'.format(args.face))
+    show_class(args, svm_clf)
+
   print('Done.')
 
 if __name__ == "__main__":

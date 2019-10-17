@@ -18,7 +18,7 @@ def detect_faces(args):
     else:
       detection_status = {}
 
-    preds_per_person = utils.load_faces_from_csv(args.db)
+    preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
     faces_files = utils.get_faces_in_files(preds_per_person)
 
     # initialize counters
@@ -34,9 +34,9 @@ def detect_faces(args):
       imgs = utils.get_images_in_dir(d)
       if len(imgs) == 0:
         continue
-      detect_faces_in_folder(args, preds_per_person, faces_files, d, detection_status, total_faces)
+      detect_faces_in_folder(args, preds_per_person, faces_files, imgs, detection_status, total_faces)
 
-def detect_faces_in_folder(args, preds_per_person, faces_files, folder, detection_status, total_faces):
+def detect_faces_in_folder(args, preds_per_person, faces_files, files, detection_status, total_faces):
     global processed_faces
     detection_status_file = os.path.join(args.db, 'detection_status.bin')
     # detections_path = os.path.join(output_path, 'detections.bin')
@@ -56,7 +56,7 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, detectio
     sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
     facerec = dlib.face_recognition_model_v1("models/dlib_face_recognition_resnet_model_v1.dat")
 
-    files = utils.get_images_in_dir_rec(os.path.normpath(folder))
+    # files = utils.get_images_in_dir_rec(os.path.normpath(folder))
 
     # Find all the faces and compute 128D face descriptors for each face.
     counter = 1
@@ -112,13 +112,13 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, folder, detectio
         detection_status[f] = {'cv2': 1, 'dlib': 1}
 
         if n % 100 == 0 and n != 0 and changed:
-          utils.export_persons_to_csv(preds_per_person, args.db)
+          utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
           with open(detection_status_file, 'wb') as fp:
             pickle.dump(detection_status, fp)
           changed = False
 
     if changed:
-      utils.export_persons_to_csv(preds_per_person, args.db)
+      utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
       with open(detection_status_file, 'wb') as fp:
         pickle.dump(detection_status, fp)
 

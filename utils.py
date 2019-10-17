@@ -61,7 +61,7 @@ def get_files_in_dir(path_to_dir, ext):
 
   return sorted(files)
 
-def export_persons_to_csv(preds_per_person, preds_per_person_path):
+def export_persons_to_csv(preds_per_person, imgs_root, preds_per_person_path):
   if len(preds_per_person) == 0:
     print('nothing to export, preds_per_person is empty')
     return
@@ -77,15 +77,31 @@ def export_persons_to_csv(preds_per_person, preds_per_person_path):
       if os.path.isfile(csv_file):
         os.remove(csv_file)
     else:
-      export_face_to_csv(preds_per_person_path, preds_per_person, p)
+      export_face_to_csv(preds_per_person_path, imgs_root, preds_per_person, p)
 
-def export_face_to_csv(preds_per_person_path, preds_per_person, face):
+def count_unique_faces(faces):
+  counter = 0
+  paths = []
+  for i in faces:
+    if not i[1] in paths:
+      counter += 1
+      paths.append(i[1])
 
-  print('exporting {} ({})'.format(face, len(preds_per_person[face])))
+  return counter
+
+def export_face_to_csv(preds_per_person_path, imgs_root, preds_per_person, face):
+
+  print('exporting {} ({})'.format(face, count_unique_faces(preds_per_person[face])))
+
+  tmp = copy.deepcopy(preds_per_person[face])
+  for i,f in enumerate(tmp):
+    relpath = os.path.relpath(f[1], imgs_root)
+    tmp[i] = (f[0], relpath, f[2], f[3], f[4], f[5])
+
   # save everything in one pickle file
   pkl_path = os.path.join(preds_per_person_path, face + '.bin')
   with open(pkl_path, "wb") as fp:
-    pickle.dump(preds_per_person[face], fp)
+    pickle.dump(tmp, fp)
 
   # open/create csv file
   csv_path = os.path.join(preds_per_person_path, face + '.csv')
@@ -99,7 +115,7 @@ def export_face_to_csv(preds_per_person_path, preds_per_person, face):
     header.append('timestamp')
     header.append('imagesize')
     filewriter.writerow(header)
-    for c in preds_per_person[face]:
+    for c in tmp:
       face_row = []
       for i in range(len(c)):
         if i == 0:
@@ -116,7 +132,7 @@ def export_face_to_csv(preds_per_person_path, preds_per_person, face):
         face_row.append(c[i])
       filewriter.writerow(face_row)
 
-def load_faces_from_csv(preds_per_person_path):
+def load_faces_from_csv(preds_per_person_path, imgs_root=''):
 
   print('Loading the faces from {}.'.format(preds_per_person_path))
 
@@ -128,6 +144,7 @@ def load_faces_from_csv(preds_per_person_path):
     exit()
 
   preds_per_person = {}
+  total = 0
 
   csv_files = get_files_in_dir(preds_per_person_path, '.csv')
   bin_files = get_files_in_dir(preds_per_person_path, '.bin')
@@ -169,16 +186,19 @@ def load_faces_from_csv(preds_per_person_path):
         else:
           found_face = descs[i - 1]
         if len(found_face) != 0:
-          if os.path.isfile(found_face[1]):
+          img_path = os.path.join(imgs_root, found_face[1])
+          if os.path.isfile(img_path):
             preds_per_person[name].append(
-              ((name, face_loc[1]), found_face[1], found_face[2], found_face[3], found_face[4], found_face[5]))
+              ((name, face_loc[1]), img_path, found_face[2], found_face[3], found_face[4], found_face[5]))
           else:
             print('file {} does not exist'.format(found_face[1]))
         else:
           print('{} not found'.format(img_name))
 
+      total += len(preds_per_person[name])
       print('loaded {} ({})'.format(name, len(preds_per_person[name])))
 
+  print('unknown/known = {}/{}'.format(len(preds_per_person['unknown']), total-len(preds_per_person['unknown'])-len(preds_per_person['deleted'])))
   return preds_per_person
 
 def get_nr_after_filter(mask, preds_class):
@@ -473,7 +493,7 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
         deleted_elem_of_cls += 1
     print('all faces in deleted.')
   elif key == 115:  # key 's'
-    export_persons_to_csv(preds_per_person, args.db)
+    export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
     print('saved')
   return deleted_elem_of_cls
 
@@ -505,9 +525,10 @@ def click(event, x, y, flags, params):
   svm_clf = params[4]
   main_face = params[5]
   main_idx = params[6]
+  draw_main_face = params[7]
 
   if flags == (cv2.EVENT_FLAG_CTRLKEY + cv2.EVENT_FLAG_LBUTTON):
-    draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image)
+    draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image, draw_main_face=draw_main_face)
     pt = Point(x,y)
     for i in face_indices:
       cls, idx = i
@@ -584,7 +605,7 @@ def draw_rect(image, loc, scale, color):
   left = int(left * scale)
   cv2.rectangle(image, (left, top), (right, bottom), color, 1)
 
-def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image):
+def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image, draw_main_face=True):
   for i in face_indices:
     cls, idx = i
     # print(cls)
@@ -598,9 +619,10 @@ def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image):
       color = (0, 255, 0) # green
     draw_rect(image, preds_per_person[cls][idx][0][1], ws, color)
 
-  draw_rect(image, preds_per_person[main_face][main_idx][0][1], ws, (255, 0, 0)) # blue
+  if draw_main_face:
+    draw_rect(image, preds_per_person[main_face][main_idx][0][1], ws, (255, 0, 0)) # blue
 
-def show_faces_on_image(svm_clf, names, main_face, main_idx, preds_per_person, face_indices, img_path, waitkey=True, text = ''):
+def show_faces_on_image(svm_clf, names, main_face, main_idx, preds_per_person, face_indices, img_path, waitkey=True, text = '', draw_main_face=True):
   # initilize the "clicked face" with the current face (main face)
   global clicked_cls, clicked_idx, clicked_names
   clicked_cls = main_face
@@ -613,19 +635,20 @@ def show_faces_on_image(svm_clf, names, main_face, main_idx, preds_per_person, f
   ws = 600.0 / float(height)
   opencvImage = cv2.resize(opencvImage, (int(width * ws), int(height * ws)))
 
-  confirmed = preds_per_person[main_face][main_idx][3]
-  if confirmed >= 1:
-    color = (0, 255, 0)
-  else:
-    color = (255, 0, 0)
-  cv2.putText(opencvImage, main_face, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
-  if text != None:
-    cv2.putText(opencvImage, text, (20, opencvImage.shape[0] - 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1)
+  if draw_main_face:
+    confirmed = preds_per_person[main_face][main_idx][3]
+    if confirmed >= 1:
+      color = (0, 255, 0)
+    else:
+      color = (255, 0, 0)
+    cv2.putText(opencvImage, main_face, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 3)
+    if text != None:
+      cv2.putText(opencvImage, text, (20, opencvImage.shape[0] - 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1)
 
-  draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, opencvImage)
+  draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, opencvImage, draw_main_face=draw_main_face)
 
   cv2.namedWindow("faces")
-  cv2.setMouseCallback("faces", click, (opencvImage, preds_per_person, face_indices, ws, svm_clf, main_face, main_idx))
+  cv2.setMouseCallback("faces", click, (opencvImage, preds_per_person, face_indices, ws, svm_clf, main_face, main_idx, draw_main_face))
 
   cv2.imshow("faces", opencvImage)
   if waitkey:
@@ -809,12 +832,13 @@ def print_top_svm(names, probs):
   print('\n')
 
 def save_face_crop(face_path, img_path, loc):
+    margin = 30
     img = cv2.imread(img_path)
 
-    x = loc[3]
-    y = loc[0]
-    w = loc[1] - x
-    h = loc[2] - y
+    x = loc[3] - margin
+    y = loc[0] - margin
+    w = loc[1] + margin - x
+    h = loc[2] + margin - y
     if is_valid_roi(x, y, w, h, img.shape):
       roi = img[y:y + h, x:x + w]
       cv2.imwrite(face_path, roi)
@@ -831,14 +855,43 @@ def save_face_crop_aligned(sp, face_path, img_path, loc):
   aligned_face = dlib.get_face_chip(img, shape)
   cv2.imwrite(face_path, aligned_face)
 
-def get_faces_in_files(preds_per_person):
+def load_faces_from_keywords_csv(faces_csv_path):
   faces_files = {}
-  for p in preds_per_person:
-    for i,f in enumerate(preds_per_person[p]):
-      # if f[0][0] != 'deleted':
-        if faces_files.get(f[1]) == None:
-          faces_files[f[1]] = []
-        faces_files[f[1]].append((p, i))
+  with open(faces_csv_path, 'r') as csvfile:
+    csvreader = csv.reader(csvfile, delimiter=',')
+    for i,line in enumerate(csvreader):
+      if i == 0:
+        continue
+      filename = line[0]
+      if len(line) == 2:
+        faces_files[filename] = line[1]
+
+  return faces_files
+
+def get_faces_in_files(preds_per_person, folder=None, ignore_unknown=False):
+  faces_files = {}
+  if folder == None:
+    for p in preds_per_person:
+      if ignore_unknown:
+        if p == 'unknown' or p == 'deleted':
+          continue
+      for i,f in enumerate(preds_per_person[p]):
+        # if f[0][0] != 'deleted':
+          if faces_files.get(f[1]) == None:
+            faces_files[f[1]] = []
+          faces_files[f[1]].append((p, i))
+  else:
+    if os.path.isdir(folder):
+      for p in preds_per_person:
+        if ignore_unknown:
+          if p == 'unknown' or p == 'deleted':
+            continue
+        for i, f in enumerate(preds_per_person[p]):
+          if os.path.dirname(f[1]) == folder:
+            if faces_files.get(f[1]) == None:
+              faces_files[f[1]] = []
+            faces_files[f[1]].append((p, i))
+
   return faces_files
 
 def face_intersect(p1, p2):
