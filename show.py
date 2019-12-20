@@ -87,7 +87,7 @@ def show_folder(args, svm_clf):
 
   utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
 
-def show_class(args, svm_clf):
+def show_class(args, svm_clf, knn_clf):
 
     preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
     mask = utils.filter_faces(args, preds_per_person)
@@ -160,6 +160,7 @@ def show_class(args, svm_clf):
             print(preds_per_person[cls][ix][1])
 
             names, probs = utils.predict_face_svm(preds_per_person[cls][ix][2], svm_clf)
+            # utils.predict_knn(knn_clf, preds_per_person[cls][ix][2])
 
             str_count = str(ix + 1) + ' / ' + str(utils.get_nr_after_filter(mask, preds_per_person[cls]))
             key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, cls, ix, preds_per_person, faces_files[image_path], image_path, waitkey=True, text=str_count)
@@ -195,6 +196,8 @@ def main():
                       help="Face to show ('all' shows all faces).")
   parser.add_argument('--svm', type=str, required=True,
                       help="Path to svm model file (e.g. svm.clf).")
+  parser.add_argument('--knn', type=str, required=True,
+                      help="Path to knn model file (e.g. knn.clf).")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--imgs_root', type=str, required=True,
@@ -208,6 +211,13 @@ def main():
   if not os.path.isdir(args.db):
       print('args.db is not a valid directory')
 
+  if os.path.isfile(args.knn):
+    with open(args.knn, 'rb') as f:
+      knn_clf = pickle.load(f)
+  else:
+    print('args.knn ({}) is not a valid file'.format(args.knn))
+    exit()
+
   if os.path.isfile(args.svm):
       with open(args.svm, 'rb') as f:
           svm_clf = pickle.load(f)
@@ -220,7 +230,7 @@ def main():
     show_folder(args, svm_clf)
   else:
     print('Showing detections of class {}'.format(args.face))
-    show_class(args, svm_clf)
+    show_class(args, svm_clf, knn_clf)
 
   print('Done.')
 

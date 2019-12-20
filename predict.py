@@ -16,34 +16,36 @@ def predict_class(args, knn_clf, svm_clf):
     print('class {} not found'.format(cls))
     exit()
 
-  face_locations = []
-  face_encodings = []
-  face_path = []
-  for p in preds_per_person[cls]:
-    face_locations.append(p[0][1])
-    face_encodings.append(p[2])
-    face_path.append(p[1])
+  if 0:
+    face_locations = []
+    face_encodings = []
+    face_path = []
+    for p in preds_per_person[cls]:
+      face_locations.append(p[0][1])
+      face_encodings.append(p[2])
+      face_path.append(p[1])
 
-  print('{} members of {}'.format(len(face_locations), cls))
-  if len(face_locations) == 0:
-    return
+    print('{} members of {}'.format(len(face_locations), cls))
+    if len(face_locations) == 0:
+      return
 
-  distance_threshold = 0.3
+    distance_threshold = 0.3
 
-  # Use the KNN model to find the best matches for the test face
-  closest_distances = knn_clf.kneighbors(face_encodings, n_neighbors=3)
-  are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(face_locations))]
+    # Use the KNN model to find the best matches for the test face
+    closest_distances = knn_clf.kneighbors(face_encodings, n_neighbors=3)
+    are_matches = [closest_distances[0][i][0] <= distance_threshold for i in range(len(face_locations))]
 
-  predictions = [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in
-                 zip(knn_clf.predict(face_encodings), face_locations, are_matches)]
+    predictions = [(pred, loc) if rec else ("unknown", loc) for pred, loc, rec in
+                   zip(knn_clf.predict(face_encodings), face_locations, are_matches)]
 
-  # assumption: predictions has the same length like the class members
-  for i,p in enumerate(preds_per_person[cls]):
-    preds_per_person[cls][i] = (predictions[i][0], p[0][1]), p[1], p[2], p[3], p[4], p[5]
+    # assumption: predictions has the same length like the class members
+    for i,p in enumerate(preds_per_person[cls]):
+      preds_per_person[cls][i] = (predictions[i][0], p[0][1]), p[1], p[2], p[3], p[4], p[5]
 
   ix = 0
   key = 0
   save = []
+  save_idx = []
   nr_of_faces = len(preds_per_person[cls])
 
   while key != 27 and nr_of_faces > 0:
@@ -63,17 +65,23 @@ def predict_class(args, knn_clf, svm_clf):
 
     while len(save) > 10:
       save.pop(0)
+      save_idx.pop(0)
 
     faces_files = utils.get_faces_in_files(preds_per_person)
 
     names, probs = utils.predict_face_svm(preds_per_person[cls][ix][2], svm_clf, print_top=True)
-    if name == "unknown":
+    if name == "unknown" or name == "detected":
       if probs[0] >= 0.95:
         name = names[0]
         print('{} > 0.95'.format(name))
       else:
-        utils.insert_element_preds_per_person(preds_per_person, cls, ix, name, conf=0)
-        preds_per_person[cls].pop(ix)
+        name_knn = utils.predict_knn(knn_clf, preds_per_person[cls][ix][2], n=7, thresh=0.3)
+        if name_knn != 'unknown':
+          name = name_knn
+          print('{} has majority in knn search'.format(name))
+        else:
+          utils.insert_element_preds_per_person(preds_per_person, cls, ix, 'unknown', conf=0)
+          preds_per_person[cls].pop(ix)
 
     if name != cls and name != 'unknown':
       if args.confirm:
@@ -82,21 +90,24 @@ def predict_class(args, knn_clf, svm_clf):
                                                                                    preds_per_person,
                                                                                    faces_files[image_path], image_path,
                                                                                    waitkey=True, text=name)
-        deleted_elem_of_cls = utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files)
+        deleted_elem_of_cls = utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files, save_idx)
 
         if deleted_elem_of_cls > 0 and clicked_idx <= ix and clicked_class == cls:
           ix -= deleted_elem_of_cls
 
         if key == 46 or key == 47:  # key '.' or key '/'
           ix += 1
-        elif key == 44:  # key ','
-          ix -= 1
+        # elif key == 44:  # key ','
+        #   ix -= 1
         elif key == 98:  # key 'b'
           if len(save) > 0:
             preds_per_person = copy.deepcopy(save.pop())
+            ix = save_idx.pop()
             print("undone last action")
         elif key == 111: # 'o'
           # move to new class
+          save.append(copy.deepcopy(preds_per_person))
+          save_idx.append(ix)
           utils.insert_element_preds_per_person(preds_per_person, cls, ix, name, conf=1)
           preds_per_person[cls].pop(ix)
       else:

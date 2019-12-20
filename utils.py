@@ -429,12 +429,14 @@ def resizeCV(img, w):
 
   return cv2.resize(img, (int(width), int(height)))
 
-def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files):
+def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files, save_idx=None):
   deleted_elem_of_cls = 0
   if key == 99:  # key 'c'
     new_name = guided_input(preds_per_person)
     if new_name != "":
       save.append(copy.deepcopy(preds_per_person))
+      if save_idx != None:
+        save_idx.append(ix)
       # add pred in new list
       if preds_per_person.get(new_name) == None:
         preds_per_person[new_name] = []
@@ -447,10 +449,14 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     new_name = guided_input(preds_per_person)
     if new_name != "":
       save.append(copy.deepcopy(preds_per_person))
+      if save_idx != None:
+        save_idx.append(ix)
       move_class(preds_per_person, cls, new_name)
       print("class moved: {} -> {}".format(cls, new_name))
   elif key == 117:  # key 'u'
     save.append(copy.deepcopy(preds_per_person))
+    if save_idx != None:
+      save_idx.append(ix)
     new_name = 'unknown'
     # add pred in new list
     if preds_per_person.get(new_name) == None:
@@ -462,6 +468,8 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 47:  # key '/'
     save.append(copy.deepcopy(preds_per_person))
+    if save_idx != None:
+      save_idx.append(ix)
     tmp = preds_per_person[cls][ix]
     if tmp[3] == 0:
       preds_per_person[cls][ix] = tmp[0], tmp[1], tmp[2], 1, tmp[4], tmp[5]
@@ -470,6 +478,8 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     print("face confirmed: {} ({})".format(tmp[0], len(preds_per_person[cls])))
   elif key >= 48 and key <= 57:  # keys '0' - '9'
     save.append(copy.deepcopy(preds_per_person))
+    if save_idx != None:
+      save_idx.append(ix)
     new_name = names[key - 48]
     insert_element_preds_per_person(preds_per_person, cls, ix, new_name, 1)
     # delete pred in current list
@@ -478,6 +488,8 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 100:  # key 'd'
     save.append(copy.deepcopy(preds_per_person))
+    if save_idx != None:
+      save_idx.append(ix)
     # delete pred in current list
     delete_element_preds_per_person(preds_per_person, cls, ix)
     deleted_elem_of_cls = 1
@@ -486,6 +498,8 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files)
     subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
   elif key == 97:  # key 'a'
     save.append(copy.deepcopy(preds_per_person))
+    if save_idx != None:
+      save_idx.append(ix)
     for f in faces_files[preds_per_person[cls][ix][1]]:
       del_cls, del_i = f
       delete_element_preds_per_person(preds_per_person, del_cls, del_i)
@@ -967,3 +981,41 @@ def get_timestamp(f):
           timeStamp = datetime.strptime(date, '%Y:%m:%d %H:%M:%S')
           no_timestamp = False
   return timeStamp
+
+def predict_knn(knn_clf, face_encoding, n=7, thresh=0.3):
+  encs_list = [face_encoding]
+  closest_distances = knn_clf.kneighbors(encs_list, n_neighbors=n)
+  # cls = knn_clf.predict(encs_list)
+
+  cls = knn_clf.classes_[knn_clf._y[closest_distances[1][0][0]]]
+  dist = closest_distances[0][0][0]
+  if dist <= thresh:
+    # print(cls)
+    return cls
+  else:
+    vote = {}
+    dist = {}
+    for i in range(0, n):
+      cls = knn_clf.classes_[knn_clf._y[closest_distances[1][0][i]]]
+      if vote.get(cls) == None:
+        vote[cls] = 0
+        dist[cls] = []
+      vote[cls] += 1
+      dist[cls].append(closest_distances[0][0][i])
+      # print('{}: {}'.format(cls, closest_distances[0][0][i]))
+
+    max_cls = ''
+    max_n = 0
+    for v in vote:
+      if vote[v] > max_n:
+        max_n = vote[v]
+        max_cls = v
+      # print('{}: {}'.format(v, vote[v]))
+
+    if max_n >= n/2 and dist[max_cls][0] <= 0.5:
+      # print(max_cls)
+      return max_cls
+    # else:
+    #   print('no majority found')
+
+  return 'unknown'

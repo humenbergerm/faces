@@ -22,7 +22,7 @@ def train(args):
     # train using csv files
     print('Training using .csv files.')
 
-    preds_per_person = utils.load_faces_from_csv(train_dir)
+    preds_per_person = utils.load_faces_from_csv(train_dir, args.imgs_root)
     for p in preds_per_person:
       if p != 'unknown' and p != 'deleted' and p != 'detected':
         for l in preds_per_person[p]:
@@ -87,6 +87,8 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--traindir', type=str, required=True,
                       help="Path to folder containing subfolders to train faces.")
+  parser.add_argument('--imgs_root', type=str, required=True,
+                      help="Root directory of your image library.")
   parser.add_argument('--outdir', type=str, required=True,
                       help="Path to store the trained models.")
   args = parser.parse_args()

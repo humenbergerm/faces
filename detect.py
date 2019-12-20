@@ -15,6 +15,10 @@ def detect_faces(args):
     detection_status_file = os.path.join(args.db, 'detection_status.bin')
     if os.path.isfile(detection_status_file):
       detection_status = pickle.load(open(detection_status_file, 'rb'))
+      # detection_status = {}
+      # for ds in detection_status_fromfile:
+      #   new_path = os.path.relpath(ds.replace('OneDrive', 'odrive/OneDrive'), args.imgs_root)
+      #   detection_status[new_path] = detection_status_fromfile[ds]
     else:
       detection_status = {}
 
@@ -68,7 +72,8 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, files, detection
         counter += 1
         processed_faces = processed_faces+1
 
-        if detection_status.get(f) != None and not args.recompute:
+        rel_path = os.path.relpath(f, args.imgs_root)
+        if detection_status.get(rel_path) != None and not args.recompute:
           print('file already processed, skipping, ...')
           continue
 
@@ -109,7 +114,7 @@ def detect_faces_in_folder(args, preds_per_person, faces_files, files, detection
         for l,d in zip(locs, descs):
           utils.add_new_face(preds_per_person, faces_files, cls, l, d, f, timeStamp, imagesize)
 
-        detection_status[f] = {'cv2': 1, 'dlib': 1}
+        detection_status[rel_path] = {'cv2': 1, 'dlib': 1}
 
         if n % 100 == 0 and n != 0 and changed:
           utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)

@@ -198,6 +198,33 @@ def export_thumbnails(args):
       print('unsupported file format of {}'.format(f))
       exit()
 
+def export_thumbnails_of_all_images_form_root(args):
+  images = utils.get_images_in_dir_rec(args.imgs_root)
+
+  size = (1024, 1024)
+
+  for f in images:
+    rel_path = os.path.relpath(f, args.imgs_root)
+    out_path = os.path.join(args.outdir, rel_path)
+
+    if os.path.isfile(out_path):
+      print('skipping')
+      continue
+
+    print('Writing {}'.format(f))
+    if not os.path.isdir(os.path.dirname(out_path)):
+      os.makedirs(os.path.dirname(out_path))
+
+    im = cv2.imread(f)
+    im = utils.resizeCV(im, size[1])
+    if f.lower().endswith(('.jpg', '.jpeg')):
+      cv2.imwrite(out_path, im, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    elif f.lower().endswith(('.png')):
+      cv2.imwrite(out_path, im, [cv2.IMWRITE_PNG_COMPRESSION, 2])
+    else:
+      print('unsupported file format of {}'.format(f))
+      exit()
+
 def prepare_face_name(str):
   face_prefix = 'f '
   return face_prefix + str
@@ -206,15 +233,17 @@ def export_to_csv(args):
   preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
   files_faces = utils.get_faces_in_files(preds_per_person, ignore_unknown=True)
   faces_csv_path = os.path.join(args.outdir, 'faces.csv')
+  faces_input_csv_path = os.path.join(args.outdir, 'faces_exiftool.csv')
 
-  if os.path.isfile(faces_csv_path):
-    files_faces_csv = utils.load_faces_from_keywords_csv(faces_csv_path)
+  if os.path.isfile(faces_input_csv_path):
+    files_faces_csv = utils.load_faces_from_keywords_csv(faces_input_csv_path)
   else:
     files_faces_csv = None
 
-  with open(os.path.join(args.outdir, 'faces.csv'), 'w+') as csvfile:
+  with open(faces_csv_path, 'w+') as csvfile:
     filewriter = csv.writer(csvfile, delimiter=',')
     header = ['SourceFile','Keywords']
+    # header = ['SourceFile','Subject','XPKeywords','LastKeywordXMP','LastKeywordIPTC','UserComment']
     filewriter.writerow(header)
     for e,f in enumerate(files_faces):
       print('{}/{}'.format(e,len(files_faces)))
@@ -232,20 +261,21 @@ def export_to_csv(args):
         for i in files_faces[f]:
           face_name = prepare_face_name(i[0])
           if not face_name in tmp_faces:
-            str += face_name + ', '
+            str += face_name + ','
             tmp_faces.append(face_name)
-        faces.append(str[:-2])
+        faces.append(str[:-1])
       if files_faces_csv != None:
         if files_faces_csv.get(relpath) != None:
-          if files_faces_csv[relpath] == faces[0]:
+          if files_faces_csv[relpath].replace(' ', '') == faces[0].replace(' ', ''):
             continue
       row += faces
+      # row += ['-','-','-','-','-']
       filewriter.writerow(row)
 
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--method', type=str, required=True,
-                      help="Method of export: 0 ... album, 1 ... exif, 2 ... face crops to folder, 3 ... thumbnails, 4 ... one csv file")
+                      help="Method of export: 0 ... album, 1 ... exif, 2 ... face crops to folder, 3 ... thumbnails, 4 ... one csv file, 5 ... thumbnails of all images")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--outdir', type=str,
@@ -292,6 +322,9 @@ def main():
   elif args.method == '4':
     print('Exporting all faces in one csv file. This can be imported using exiftool.')
     export_to_csv(args)
+  elif args.method == '5':
+    print('Exporting all images as low quality thumbails to {}.'.format(args.outdir))
+    export_thumbnails_of_all_images_form_root(args)
 
   print('Done.')
 

@@ -1,9 +1,24 @@
 exiftool '-datetimeoriginal=2007:08:14 12:00:00' -if '(not $datetimeoriginal or ($datetimeoriginal eq "0000:00:00 00:00:00"))' . -overwrite_original
+exiftool '-datetimeoriginal=1981:06:01 12:00:00' -if '(not $datetimeoriginal or ($datetimeoriginal eq "0000:00:00 00:00:00"))' . -overwrite_original
+exiftool '-datetimeoriginal=-ContentCreateDate' -if '(not $datetimeoriginal or ($datetimeoriginal eq "0000:00:00 00:00:00"))' . -overwrite_original
+
+
+exiftool '-datetimeoriginal<filename' -d "IMG_%Y%M%D_%H%M%S_213.%%e" -if '(not $datetimeoriginal or ($datetimeoriginal eq "0000:00:00 00:00:00"))' IMG_20170813_160936_213.jpg
 
 exiftool -XMP-dc:Subject= -IFD0:XPKeywords= -XMP-microsoft:LastKeywordXMP= -LastKeywordIPTC= -UserComment= 2015_Les_Menuires_2015-03-09-02.47.14.jpg
 
 exiftool -XMP-dc:Subject= -IFD0:XPKeywords= -XMP-microsoft:LastKeywordXMP= -LastKeywordIPTC= -UserComment= -IPTC:Keywords= 2002_London_Rupi_Michi_Babsi_Martin_2002-01-03-14.46.29.JPG -overwrite_original
 
 
-exiftool -csv -r -IPTC:Keywords . > keywords.csv
-to import use sep to separate lists into items (e.g. keywords)
+1. exiftool -csv -r -IPTC:Keywords . > faces_exiftool.csv
+2. export faces
+3. exiftool -r -sep , -csv=faces.csv . -overwrite_original
+
+1. exiftool -csv -r -DateTimeOriginal -gpslongitude -gpslatitude -gpstimestamp . > exif.csv
+2. cp ~/OneDrive/Fotos/exif.csv .
+3. exiftool -r -sep , -csv=/Users/mhumenbe/odrive/OneDrive/Fotos/exif.csv . -overwrite_original
+
+to delete tags from csv file:
+use -f and put '-' for each tag to delete
+
+exiftool -XMP-dc:Subject= -IFD0:XPKeywords= -XMP-microsoft:LastKeywordXMP= -LastKeywordIPTC= -UserComment= "/Users/mhumenbe/odrive/OneDrive/Fotos/Partyfotos/Party Michi_supercafe_gayboy.jpg"
