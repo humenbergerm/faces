@@ -509,6 +509,9 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files,
   elif key == 115:  # key 's'
     export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
     print('saved')
+  elif key == 122: # key 'z'
+    tmp = preds_per_person[cls][ix]
+    show_face_crop(tmp[1], tmp[0][1])
   return deleted_elem_of_cls
 
 def get_rect_from_pts(pts, ws):
@@ -859,6 +862,19 @@ def save_face_crop(face_path, img_path, loc):
       return True
 
     return False
+
+def show_face_crop(img_path, loc):
+  margin = 50
+  img = cv2.imread(img_path)
+  x = loc[3] - margin
+  y = loc[0] - margin
+  w = loc[1] + margin - x
+  h = loc[2] + margin - y
+  if is_valid_roi(x, y, w, h, img.shape):
+    roi = img[y:y + h, x:x + w]
+    cv2.imshow('roi', roi)
+    cv2.waitKey(1)
+    # cv2.destroyWindow('roi')
 
 def save_face_crop_aligned(sp, face_path, img_path, loc):
   img = cv2.imread(img_path)
