@@ -429,7 +429,7 @@ def resizeCV(img, w):
 
   return cv2.resize(img, (int(width), int(height)))
 
-def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files, save_idx=None):
+def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files, save_idx=None, save_each_change=False):
   deleted_elem_of_cls = 0
   if key == 99:  # key 'c'
     new_name = guided_input(preds_per_person)
@@ -444,6 +444,9 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files,
       # delete pred in current list
       preds_per_person[cls].pop(ix)
       deleted_elem_of_cls = 1
+      if save_each_change:
+        export_face_to_csv(args.db, args.imgs_root, preds_per_person, cls)
+        export_face_to_csv(args.db, args.imgs_root, preds_per_person, new_name)
       print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 109:  # key 'm'
     new_name = guided_input(preds_per_person)
@@ -452,6 +455,9 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files,
       if save_idx != None:
         save_idx.append(ix)
       move_class(preds_per_person, cls, new_name)
+      if save_each_change:
+        export_face_to_csv(args.db, args.imgs_root, preds_per_person, cls)
+        export_face_to_csv(args.db, args.imgs_root, preds_per_person, new_name)
       print("class moved: {} -> {}".format(cls, new_name))
   elif key == 117:  # key 'u'
     save.append(copy.deepcopy(preds_per_person))
@@ -465,6 +471,9 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files,
     # delete pred in current list
     preds_per_person[cls].pop(ix)
     deleted_elem_of_cls = 1
+    if save_each_change:
+      export_face_to_csv(args.db, args.imgs_root, preds_per_person, cls)
+      export_face_to_csv(args.db, args.imgs_root, preds_per_person, new_name)
     print("face changed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 47:  # key '/'
     save.append(copy.deepcopy(preds_per_person))
@@ -485,6 +494,9 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files,
     # delete pred in current list
     preds_per_person[cls].pop(ix)
     deleted_elem_of_cls = 1
+    if save_each_change:
+      export_face_to_csv(args.db, args.imgs_root, preds_per_person, cls)
+      export_face_to_csv(args.db, args.imgs_root, preds_per_person, new_name)
     print("face confirmed: {} ({})".format(new_name, len(preds_per_person[new_name])))
   elif key == 100:  # key 'd'
     save.append(copy.deepcopy(preds_per_person))
@@ -493,18 +505,22 @@ def evaluate_key(args, key, preds_per_person, cls, ix, save, names, faces_files,
     # delete pred in current list
     delete_element_preds_per_person(preds_per_person, cls, ix)
     deleted_elem_of_cls = 1
+    if save_each_change:
+      export_face_to_csv(args.db, args.imgs_root, preds_per_person, cls)
+      export_face_to_csv(args.db, args.imgs_root, preds_per_person, 'deleted')
     print("face deleted")
   elif key == 116:  # key 't'
     subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
   elif key == 97:  # key 'a'
-    save.append(copy.deepcopy(preds_per_person))
-    if save_idx != None:
-      save_idx.append(ix)
-    for f in faces_files[preds_per_person[cls][ix][1]]:
-      del_cls, del_i = f
-      delete_element_preds_per_person(preds_per_person, del_cls, del_i)
-      if del_cls == cls and del_i <= ix:
-        deleted_elem_of_cls += 1
+    # To be checked!!!
+    # save.append(copy.deepcopy(preds_per_person))
+    # if save_idx != None:
+    #   save_idx.append(ix)
+    # for f in faces_files[preds_per_person[cls][ix][1]]:
+    #   del_cls, del_i = f
+    #   delete_element_preds_per_person(preds_per_person, del_cls, del_i)
+    #   if del_cls == cls and del_i <= ix:
+    #     deleted_elem_of_cls += 1
     print('all faces in deleted.')
   elif key == 115:  # key 's'
     export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
@@ -870,11 +886,17 @@ def show_face_crop(img_path, loc):
   y = loc[0] - margin
   w = loc[1] + margin - x
   h = loc[2] + margin - y
+  if not is_valid_roi(x, y, w, h, img.shape):
+    x = loc[3]
+    y = loc[0]
+    w = loc[1] - x
+    h = loc[2] - y
+  roi = img[y:y + h, x:x + w]
+  if roi.shape[1] > 300:
+    roi = resizeCV(roi, 300)
   if is_valid_roi(x, y, w, h, img.shape):
-    roi = img[y:y + h, x:x + w]
     cv2.imshow('roi', roi)
     cv2.waitKey(1)
-    # cv2.destroyWindow('roi')
 
 def save_face_crop_aligned(sp, face_path, img_path, loc):
   img = cv2.imread(img_path)

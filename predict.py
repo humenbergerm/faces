@@ -47,6 +47,7 @@ def predict_class(args, knn_clf, svm_clf):
   save = []
   save_idx = []
   nr_of_faces = len(preds_per_person[cls])
+  save_each_change = True
 
   while key != 27 and nr_of_faces > 0:
 
@@ -86,11 +87,13 @@ def predict_class(args, knn_clf, svm_clf):
     if name != cls and name != 'unknown':
       if args.confirm:
         image_path = preds_per_person[cls][ix][1]
+        tmp = preds_per_person[cls][ix]
+        utils.show_face_crop(tmp[1], tmp[0][1])
         key, clicked_class, clicked_idx, clicked_names = utils.show_faces_on_image(svm_clf, names, cls, ix,
                                                                                    preds_per_person,
                                                                                    faces_files[image_path], image_path,
                                                                                    waitkey=True, text=name)
-        deleted_elem_of_cls = utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files, save_idx)
+        deleted_elem_of_cls = utils.evaluate_key(args, key, preds_per_person, clicked_class, clicked_idx, save, clicked_names, faces_files, save_idx, save_each_change=save_each_change)
 
         if deleted_elem_of_cls > 0 and clicked_idx <= ix and clicked_class == cls:
           ix -= deleted_elem_of_cls
@@ -110,6 +113,9 @@ def predict_class(args, knn_clf, svm_clf):
           save_idx.append(ix)
           utils.insert_element_preds_per_person(preds_per_person, cls, ix, name, conf=1)
           preds_per_person[cls].pop(ix)
+          if save_each_change:
+            utils.export_face_to_csv(args.db, args.imgs_root, preds_per_person, cls)
+            utils.export_face_to_csv(args.db, args.imgs_root, preds_per_person, name)
       else:
         # move to new class
         utils.insert_element_preds_per_person(preds_per_person, cls, ix, name, conf=0)
