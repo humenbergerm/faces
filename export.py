@@ -9,6 +9,8 @@ import subprocess
 
 import utils
 import exif
+from libxmp import XMPFiles, consts
+from libxmp import XMPMeta
 
 def export_album(args):
   preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
@@ -215,19 +217,39 @@ def export_thumbnails_of_all_images_form_root(args):
     if not os.path.isdir(os.path.dirname(out_path)):
       os.makedirs(os.path.dirname(out_path))
 
-    im = cv2.imread(f)
-    im = utils.resizeCV(im, size[1])
-    if f.lower().endswith(('.jpg', '.jpeg')):
-      cv2.imwrite(out_path, im, [cv2.IMWRITE_JPEG_QUALITY, 80])
-    elif f.lower().endswith(('.png')):
-      cv2.imwrite(out_path, im, [cv2.IMWRITE_PNG_COMPRESSION, 2])
-    else:
-      print('unsupported file format of {}'.format(f))
-      exit()
+    # if not utils.autorotate_and_resize(f, out_path, size):
+    #   path = f
+    # else:
+    #   path = out_path
+
+    utils.autorotate_and_resize(f, out_path, size)
+
+    # im = cv2.imread(path)
+    # im = utils.resizeCV(im, size[1])
+    # if f.lower().endswith(('.jpg', '.jpeg')):
+    #   cv2.imwrite(out_path, im, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    # elif f.lower().endswith(('.png')):
+    #   cv2.imwrite(out_path, im, [cv2.IMWRITE_PNG_COMPRESSION, 2])
+    # else:
+    #   print('unsupported file format of {}'.format(f))
+    #   exit()
 
 def prepare_face_name(str):
   face_prefix = 'f '
   return face_prefix + str
+
+def prepare_face_names(faces_list):
+  faces = []
+  if len(faces_list) == 1:
+    face_name = prepare_face_name(faces_list[0][0])
+    faces.append(face_name)
+  else:
+    for i in faces_list:
+      face_name = prepare_face_name(i[0])
+      if not face_name in faces:
+        faces.append(face_name)
+
+  return faces
 
 def export_to_csv(args):
   preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
@@ -272,10 +294,51 @@ def export_to_csv(args):
       # row += ['-','-','-','-','-']
       filewriter.writerow(row)
 
+def get_xmp_keywords(xmp):
+  nr_of_elements = xmp.count_array_items(consts.XMP_NS_DC, 'subject')
+  keywords = []
+  for i in range(1, nr_of_elements+1):
+    keywords.append(xmp.get_array_item(consts.XMP_NS_DC, 'subject', i))
+
+  return keywords
+
+def export_to_xmp(args):
+  preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
+  if len(preds_per_person) == 0:
+    print('no faces loaded')
+    exit()
+  files_faces = utils.get_faces_in_files(preds_per_person, ignore_unknown=True)
+
+  for f in files_faces:
+    xmp_path = os.path.splitext(f)[0] + '.xmp'
+    if os.path.exists(xmp_path):
+      print('modifying existing file')
+      with open(xmp_path, 'r') as fptr:
+        strbuffer = fptr.read()
+      xmp = XMPMeta()
+      xmp.parse_from_str(strbuffer)
+    else:
+      print('creating new file')
+      xmpfile = XMPFiles(file_path=f, open_forupdate=True)
+      xmp = xmpfile.get_xmp()
+
+    xmp_keywords = get_xmp_keywords(xmp)
+
+    faces = prepare_face_names(files_faces[f])
+    if not sorted(faces) == sorted(xmp_keywords):
+      print('test')
+
+    if len(xmp_keywords) == 0:
+      print(xmp_keywords)
+
+    # with open(xmp_path, 'w') as fptr:
+    #   fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
+
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--method', type=str, required=True,
-                      help="Method of export: 0 ... album, 1 ... exif, 2 ... face crops to folder, 3 ... thumbnails, 4 ... one csv file, 5 ... thumbnails of all images")
+                      help="Method of export: 0 ... album, 1 ... exif, 2 ... face crops to folder, 3 ... thumbnails, 4 ... one csv file, 5 ... thumbnails of all images, 6 ... XMP files")
   parser.add_argument('--db', type=str, required=True,
                       help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--outdir', type=str,
@@ -325,6 +388,9 @@ def main():
   elif args.method == '5':
     print('Exporting all images as low quality thumbails to {}.'.format(args.outdir))
     export_thumbnails_of_all_images_form_root(args)
+  elif args.method == '6':
+    print('Exporting keywords to XMP files.')
+    export_to_xmp(args)
 
   print('Done.')
 

@@ -12,6 +12,7 @@ import subprocess
 from shapely.ops import cascaded_union
 from datetime import datetime
 from PIL import Image
+import piexif
 # from matplotlib import pyplot as plt
 # import geopandas as gpd
 # from descartes import PolygonPatch
@@ -1057,3 +1058,46 @@ def predict_knn(knn_clf, face_encoding, n=7, thresh=0.3):
     #   print('no majority found')
 
   return 'unknown'
+
+def autorotate_and_resize(path, out_path, size):
+  quality = 80
+  image = Image.open(path)
+  try:
+    exif = image._getexif()
+    exif_dict = piexif.load(path)
+  except AttributeError as e:
+    print("Could not get exif - Bad image!")
+    return False
+
+  (width, height) = image.size
+  s = size[0] / width
+  height *= s
+  width *= s
+  image = image.resize((int(width), int(height)), Image.BICUBIC)
+  if exif:
+    exif_dict['Exif'][40962] = int(width)
+    exif_dict['Exif'][40963] = int(height)
+
+  if not exif:
+    image.save(out_path, quality=quality)
+  else:
+    orientation_key = 274  # cf ExifTags
+    if orientation_key in exif:
+      orientation = exif[orientation_key]
+      rotate_values = {
+        3: 180,
+        6: 270,
+        8: 90
+      }
+      if orientation in rotate_values:
+        # Rotate and save the picture
+        image = image.rotate(rotate_values[orientation])
+        exif_dict['0th'][orientation_key] = 1
+        exif_dict['Exif'][40962] = int(height)
+        exif_dict['Exif'][40963] = int(width)
+      image.save(out_path, quality=quality, exif=piexif.dump(exif_dict))
+    else:
+      exif_dict['0th'][orientation_key] = 1
+      image.save(out_path, quality=quality, exif=piexif.dump(exif_dict))
+
+  return True

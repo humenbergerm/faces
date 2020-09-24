@@ -22,3 +22,12 @@ to delete tags from csv file:
 use -f and put '-' for each tag to delete
 
 exiftool -XMP-dc:Subject= -IFD0:XPKeywords= -XMP-microsoft:LastKeywordXMP= -LastKeywordIPTC= -UserComment= "/Users/mhumenbe/odrive/OneDrive/Fotos/Partyfotos/Party Michi_supercafe_gayboy.jpg"
+
+create the thumbnails
+
+exiftool -csv -r . > exif.csv
+export all images to thumbnails
+cp exif.csv to thumbnails folder
+exiftool -r -csv=exif.csv . -overwrite_original
+cp faces to thumbnails folder
+exiftool -r -sep , -csv=faces.csv . -overwrite_original
