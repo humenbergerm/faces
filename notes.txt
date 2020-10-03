@@ -31,3 +31,25 @@ cp exif.csv to thumbnails folder
 exiftool -r -csv=exif.csv . -overwrite_original
 cp faces to thumbnails folder
 exiftool -r -sep , -csv=faces.csv . -overwrite_original
+
+
+
+
+  # from libxmp.utils import file_to_dict
+  # from libxmp import XMPFiles, consts
+  # from libxmp import XMPMeta
+  #
+  # with open('/Users/mhumenbe/Library/Mobile Documents/com~apple~CloudDocs/Fotos/Partyfotos/Party kathi und martin.xmp', 'r') as fptr:
+  #     strbuffer = fptr.read()
+  # xmp = XMPMeta()
+  # xmp.parse_from_str(strbuffer)
+
+
+  # xmpfile = XMPFiles(file_path="/Users/mhumenbe/Library/Mobile Documents/com~apple~CloudDocs/Fotos/Partyfotos/Party kathi und martin.jpg", open_forupdate=True)
+  # xmp = xmpfile.get_xmp()
+  # test = xmp.get_property(consts.XMP_NS_DC, 'format')
+  # test1 = xmp.get_array_item(consts.XMP_NS_DC, 'subject', 1)
+  # count = xmp.count_array_items(consts.XMP_NS_DC, 'subject')
+  # xmp.append_array_item(consts.XMP_NS_DC, 'subject', 'f martin', {'prop_array_is_ordered': True, 'prop_value_is_array': True})
+  # with open('/Users/mhumenbe/Library/Mobile Documents/com~apple~CloudDocs/Fotos/Partyfotos/Party kathi und martin.xmp', 'w') as fptr:
+  #     fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))

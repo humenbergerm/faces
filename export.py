@@ -6,6 +6,7 @@ import dlib
 import cv2
 from PIL import Image
 import subprocess
+import pickle
 
 import utils
 import exif
@@ -310,15 +311,15 @@ def export_to_xmp(args):
   files_faces = utils.get_faces_in_files(preds_per_person, ignore_unknown=True)
 
   for f in files_faces:
+    if os.path.dirname(f) != args.mask_folder and args.mask_folder != None:
+      continue
     xmp_path = os.path.splitext(f)[0] + '.xmp'
     if os.path.exists(xmp_path):
-      print('modifying existing file')
       with open(xmp_path, 'r') as fptr:
         strbuffer = fptr.read()
       xmp = XMPMeta()
       xmp.parse_from_str(strbuffer)
     else:
-      print('creating new file')
       xmpfile = XMPFiles(file_path=f, open_forupdate=True)
       xmp = xmpfile.get_xmp()
 
@@ -326,13 +327,83 @@ def export_to_xmp(args):
 
     faces = prepare_face_names(files_faces[f])
     if not sorted(faces) == sorted(xmp_keywords):
-      print('test')
+      xmp.delete_property(consts.XMP_NS_DC, 'subject')
+      xmp_keywords = get_xmp_keywords(xmp)
+      new_xmp_keywords = []
+      for face in faces:
+        if not face in xmp_keywords:
+          new_xmp_keywords.append(face)
 
-    if len(xmp_keywords) == 0:
-      print(xmp_keywords)
+      for face in new_xmp_keywords:
+        xmp.append_array_item(consts.XMP_NS_DC, 'subject', face, {'prop_array_is_ordered': True, 'prop_value_is_array': True})
 
-    # with open(xmp_path, 'w') as fptr:
-    #   fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
+      print('modifying existing file: {}'.format(os.path.basename(xmp_path)))
+      with open(xmp_path, 'w') as fptr:
+        fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
+    elif not os.path.exists(xmp_path):
+      print('creating new file: {}'.format(os.path.basename(xmp_path)))
+      with open(xmp_path, 'w') as fptr:
+        fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
+
+def export_new_format(args):
+
+  # faces = utils.load_img_labels(args.imgs_root)
+  # d1, d2, d3 = utils.get_faces_dicts(faces)
+  # utils.store_to_img_labels(faces, d1)
+
+  preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
+  if len(preds_per_person) == 0:
+    print('no faces loaded')
+    exit()
+  files_faces = utils.get_faces_in_files(preds_per_person, ignore_unknown=False)
+
+  faces = []
+  names = []
+  for f in files_faces:
+    (name, idx) = files_faces[f][0]
+    img_timestamp = preds_per_person[name][idx][4]
+    img_labels = utils.IMG_LABELS(img_timestamp)
+    for (name, idx) in files_faces[f]:
+
+      if not name in names:
+        names.append(name)
+        name_id = len(names)-1
+      else:
+        name_id = names.index(name)
+
+      ppp = preds_per_person[name][idx]
+      loc = ppp[0][1]
+      desc = ppp[2]
+      timestamp = ppp[4]
+      confirmed = ppp[3]
+      face = utils.FACE(loc, desc, name_id, timestamp, confirmed)
+      faces.append(face)
+      img_labels.faces.append(face)
+
+    # write img_label
+    #bin_path = os.path.join(os.path.dirname(f), os.path.splitext(os.path.basename(f))[0] + '.pkl')
+    bin_path = f + '.pkl'
+    with open(bin_path, 'wb') as fid:
+      pickle.dump(img_labels, fid)
+
+    # with open(bin_path, 'rb') as fid:
+    #   img_labels_test = pickle.load(fid)
+    #   for face in img_labels_test.faces:
+    #     face.path = f
+
+  # write name_id mapping
+  names_path = os.path.join(args.outdir, 'name_mapping.csv')
+  with open(names_path, "w") as csvfile:
+    filewriter = csv.writer(csvfile, delimiter=';')
+    for i,n in enumerate(names):
+      filewriter.writerow([str(i), n])
+
+  # names_test = {}
+  # with open(names_path, 'r') as csvfile:
+  #   filereader = csv.reader(csvfile, delimiter=';')
+  #   for row in enumerate(filereader):
+  #     names_test[row[0]] = row[1][1]
+  # print('test')
 
 
 def main():
@@ -391,6 +462,9 @@ def main():
   elif args.method == '6':
     print('Exporting keywords to XMP files.')
     export_to_xmp(args)
+  elif args.method == '7':
+    print('Exporting to new format.')
+    export_new_format(args)
 
   print('Done.')
 
