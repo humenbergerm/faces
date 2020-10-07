@@ -7,6 +7,8 @@ import cv2
 
 import utils
 
+processed_faces = 0
+
 def detect_faces(args):
 
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
@@ -15,20 +17,22 @@ def detect_faces(args):
     # initialize counters
     total_faces = len(utils.get_images_in_dir_rec(args.input))
 
-    dirs = utils.get_folders_in_dir_rec(args.input)
-    # if there is no sub-folder, process input folder
-    if len(dirs) == 0:
-      dirs.append(args.input)
+    # dirs = utils.get_folders_in_dir_rec(args.input)
+    # # if there is no sub-folder, process input folder
+    # if len(dirs) == 0:
+    #   dirs.append(args.input)
 
-    for d in dirs:
-      # check if folder contains images, if not -> skip
-      imgs = utils.get_images_in_dir(d)
-      if len(imgs) == 0:
-        continue
-      detect_faces_in_folder(args, faces, img_labels, imgs, total_faces)
+    # for d in dirs:
+    #   # check if folder contains images, if not -> skip
+    #   imgs = utils.get_images_in_dir(d)
+    #   if len(imgs) == 0:
+    #     continue
+    #   detect_faces_in_folder(args, faces, img_labels, imgs, total_faces)
+
+    detect_faces_in_folder(args, faces, img_labels, utils.get_images_in_dir_rec(args.input), total_faces)
 
 def detect_faces_in_folder(args, faces, img_labels, files, total_faces):
-    processed_faces = 0
+    global processed_faces
 
     # opencv face detector
     modelFile = "models/opencv_face_detector_uint8.pb"

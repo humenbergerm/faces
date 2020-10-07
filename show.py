@@ -43,39 +43,32 @@ def show_faces_in_folder(args, svm_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
     faces = utils.FACES(tmp_faces, args.imgs_root)
 
-    # with open(os.path.join(args.imgs_root, 'faces.pkl'), 'wb') as fid:
-    #     pickle.dump(faces, fid)
-    #
-    # with open(os.path.join(args.imgs_root, 'faces.pkl'), 'rb') as fid:
-    #     faces = pickle.load(fid)
-    #
-    # for f in faces.dict_by_files:
-    #     faces.changed_files.append(f)
-    # faces.store_to_img_labels(args.imgs_root)
+    files = faces.get_paths_from_folder(args.face)
 
     i = 0
     key = 0
     while key != 27:
 
         if i < 0:
-            i = len(faces.dict_by_folders[args.face]) - 1
-        if i > len(faces.dict_by_folders[args.face]) - 1:
+            i = len(files) - 1
+        if i > len(files) - 1:
             i = 0
 
-        img_path = list(faces.dict_by_folders[args.face])[i]
+        str_count = str(i + 1) + ' / ' + str(len(files)) + ' #' + args.face + ': ' + str(faces.get_number_of_faces_by_name(args.face))
+        print(str_count)
+
+        img_path = files[i]
         opencvImage = cv2.imread(img_path)
         height, width = opencvImage.shape[:2]
         scale = 600.0 / float(height)
         opencvImage = cv2.resize(opencvImage, (int(width * scale), int(height * scale)))
         opencvImage_clean = opencvImage.copy()
 
-        # cv2.imshow("faces", opencvImage_clean)
-        # cv2.waitKey(1)
         utils.draw_faces_on_image(faces, faces.dict_by_folders[args.face][img_path], scale, opencvImage)
         cv2.imshow("faces", opencvImage)
         cv2.setMouseCallback("faces", utils.click_face, (opencvImage_clean, faces, scale, img_labels[img_path], svm_clf))
         key = cv2.waitKey(0)
-        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names)
+        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path)
         utils.clicked_idx = []
 
         if key == 46 or key == 47:  # key '.' or key '/'
@@ -83,7 +76,7 @@ def show_faces_in_folder(args, svm_clf):
         elif key == 44:  # key ','
             i -= 1
         elif key == 114:  # key 'r'
-            i = random.randint(0, len(faces.dict_by_folders[args.face]) - 1)
+            i = random.randint(0, len(files) - 1)
 
     faces.store_to_img_labels(args.imgs_root)
 
@@ -97,28 +90,40 @@ def show_faces_by_name(args, svm_clf):
         print('no faces found in this class')
         return False
 
+    files = faces.get_paths(faces.dict_by_name[name_id])
+
     i = 0
     key = 0
-    while key != 27 and len(faces.dict_by_name[name_id]) > 0:
+    while key != 27 and len(files) > 0:
 
         if i < 0:
-            i = len(faces.dict_by_name[name_id]) - 1
-        if i > len(faces.dict_by_name[name_id]) - 1:
+            i = len(files) - 1
+        if i > len(files) - 1:
             i = 0
 
-        img_path = faces.get_face_path(faces.dict_by_name[name_id][i])
+        str_count = str(i + 1) + ' / ' + str(len(files)) + ' #' + args.face + ': ' + str(faces.get_number_of_faces_by_name(args.face))
+        print(str_count)
+
+        img_path = files[i]
         opencvImage = cv2.imread(img_path)
         height, width = opencvImage.shape[:2]
         scale = 600.0 / float(height)
         opencvImage = cv2.resize(opencvImage, (int(width * scale), int(height * scale)))
         opencvImage_clean = opencvImage.copy()
 
-        # utils.draw_faces_on_image(faces, faces.dict_by_name[name_id], scale, opencvImage)
-        utils.draw_faces_on_image(faces, faces.dict_by_files[img_path], scale, opencvImage)
+        main_face = faces.get_face_idxs_by_name_and_file(name_id, img_path)
+        if len(main_face) == 0:
+            main_idx = -1
+        else:
+            main_idx = main_face[0]
+        utils.draw_faces_on_image(faces, faces.dict_by_files[img_path], scale, opencvImage, main_idx)
+        utils.clicked_names, probs = utils.predict_face_svm(faces.get_face(main_idx).desc, svm_clf)
         cv2.imshow("faces", opencvImage)
         cv2.setMouseCallback("faces", utils.click_face, (opencvImage_clean, faces, scale, img_labels[img_path], svm_clf))
         key = cv2.waitKey(0)
-        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names)
+        if len(utils.clicked_idx) == 0 and main_idx != -1:
+            utils.clicked_idx.append(main_idx)
+        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path)
         utils.clicked_idx = []
 
         if not name_id in faces.dict_by_name:
@@ -130,7 +135,70 @@ def show_faces_by_name(args, svm_clf):
         elif key == 44:  # key ','
             i -= 1
         elif key == 114:  # key 'r'
-            i = random.randint(0, len(faces.dict_by_name[name_id]) - 1)
+            i = random.randint(0, len(files) - 1)
+        elif key == 102:  # key 'f'
+            if main_idx != -1:
+                next_idx = main_idx
+                while (faces.get_confirmed(next_idx) not in [0, 2]):
+                    i += 1
+                    if i >= len(files):
+                        break
+                    next_face = faces.get_face_idxs_by_name_and_file(name_id, files[i])
+                    if len(next_face) == 0:
+                        next_idx = -1
+                    else:
+                        next_idx = next_face[0]
+
+    faces.store_to_img_labels(args.imgs_root)
+
+def show_unconfirmed_faces(args, svm_clf):
+    tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+    faces = utils.FACES(tmp_faces, args.imgs_root)
+
+    unconfirmed = faces.get_unconfirmed(args.face)
+
+    if len(unconfirmed) == 0:
+        print('no newly predicted faces found')
+        return False
+
+    files = faces.get_paths(unconfirmed, allow_duplicates=True)
+
+    i = 0
+    key = 0
+    while key != 27 and len(files) > 0:
+
+        if i < 0:
+            i = len(files) - 1
+        if i > len(files) - 1:
+            i = 0
+
+        str_count = str(i + 1) + ' / ' + str(len(files)) + ' #' + args.face + ': ' + str(len(unconfirmed))
+        print(str_count)
+
+        img_path = files[i]
+        opencvImage = cv2.imread(img_path)
+        height, width = opencvImage.shape[:2]
+        scale = 600.0 / float(height)
+        opencvImage = cv2.resize(opencvImage, (int(width * scale), int(height * scale)))
+        opencvImage_clean = opencvImage.copy()
+
+        main_idx = unconfirmed[i]
+        utils.draw_faces_on_image(faces, faces.dict_by_files[img_path], scale, opencvImage, main_idx)
+        utils.clicked_names, probs = utils.predict_face_svm(faces.get_face(main_idx).desc, svm_clf)
+        cv2.imshow("faces", opencvImage)
+        cv2.setMouseCallback("faces", utils.click_face, (opencvImage_clean, faces, scale, img_labels[img_path], svm_clf))
+        key = cv2.waitKey(0)
+        if len(utils.clicked_idx) == 0 and main_idx != -1:
+            utils.clicked_idx.append(main_idx)
+        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path)
+        utils.clicked_idx = []
+
+        if key == 46 or key == 47:  # key '.' or key '/'
+            i += 1
+        elif key == 44:  # key ','
+            i -= 1
+        elif key == 114:  # key 'r'
+            i = random.randint(0, len(files) - 1)
 
     faces.store_to_img_labels(args.imgs_root)
 
@@ -291,8 +359,8 @@ def main():
                       help="Face to show ('all' shows all faces).")
   parser.add_argument('--svm', type=str, required=True,
                       help="Path to svm model file (e.g. svm.clf).")
-  parser.add_argument('--knn', type=str, required=True,
-                      help="Path to knn model file (e.g. knn.clf).")
+  # parser.add_argument('--knn', type=str, required=True,
+  #                     help="Path to knn model file (e.g. knn.clf).")
   # parser.add_argument('--db', type=str, required=True,
   #                     help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--imgs_root', type=str, required=True,
@@ -306,26 +374,30 @@ def main():
   # if not os.path.isdir(args.db):
   #     print('args.db is not a valid directory')
 
-  if os.path.isfile(args.knn):
-    with open(args.knn, 'rb') as f:
-      knn_clf = pickle.load(f)
-  else:
-    print('args.knn ({}) is not a valid file'.format(args.knn))
-    exit()
+  # if os.path.isfile(args.knn):
+  #   with open(args.knn, 'rb') as f:
+  #     knn_clf = pickle.load(f)
+  # else:
+  #   print('args.knn ({}) is not a valid file'.format(args.knn))
+  #   exit()
 
   if os.path.isfile(args.svm):
       with open(args.svm, 'rb') as f:
-          svm_clf = pickle.load(f)
+            svm_clf = pickle.load(f)
   else:
       print('args.svm ({}) is not a valid file'.format(args.svm))
       exit()
 
   if os.path.isdir(args.face):
-    print('Showing detections of folder {}'.format(args.face))
-    show_faces_in_folder(args, svm_clf)
+        print('Showing detections of folder {}'.format(args.face))
+        show_faces_in_folder(args, svm_clf)
   else:
-    print('Showing detections of class {}'.format(args.face))
-    show_faces_by_name(args, svm_clf)
+      if args.face in ['predicted', 'unconfirmed']:
+          print('Showing unconfirmed faces')
+          show_unconfirmed_faces(args, svm_clf)
+      else:
+        print('Showing detections of class {}'.format(args.face))
+        show_faces_by_name(args, svm_clf)
 
   print('Done.')
 

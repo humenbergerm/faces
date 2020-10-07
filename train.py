@@ -83,25 +83,68 @@ def train(args):
 
   print('Trained models with {} faces'.format(len(X)))
 
+def train_detectors(args):
+  X = []
+  y = []
+
+  tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+  faces = utils.FACES(tmp_faces, args.imgs_root)
+
+  for p in faces.dict_by_name:
+    real_name = faces.get_real_name(p)
+    if real_name != 'unknown' and real_name != 'deleted' and real_name != 'detected':
+      for l in faces.dict_by_name[p]:
+        X.append(faces.get_desc(l))
+        y.append(real_name)
+
+  if len(X) == 0:
+    print('No faces found in database {}'.format(args.imgs_root))
+    return
+
+  # Determine how many neighbors to use for weighting in the KNN classifier
+  n_neighbors = int(round(math.sqrt(len(X))))
+  # n_neighbors = 100
+  print("Chose n_neighbors automatically:", n_neighbors)
+
+  # Create and train the KNN classifier
+  print("Training model with KNN ...")
+  knn_clf = neighbors.KNeighborsClassifier(n_neighbors=n_neighbors, algorithm='auto', weights='distance')
+  knn_clf.fit(X, y)
+
+  # Save the trained KNN classifier
+  with open(os.path.join(args.outdir, 'knn.clf'), 'wb') as f:
+    pickle.dump(knn_clf, f)
+
+  # train the svm
+  print("Training model with an SVM ...")
+  recognizer = SVC(C=1.0, kernel="linear", probability=True)
+  recognizer.fit(X, y)
+
+  # Save the trained SVM
+  with open(os.path.join(args.outdir, 'svm.clf'), 'wb') as f:
+    pickle.dump(recognizer, f)
+
+  print('Trained models with {} faces'.format(len(X)))
+
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('--traindir', type=str, required=True,
-                      help="Path to folder containing subfolders to train faces.")
+  # parser.add_argument('--traindir', type=str, required=True,
+  #                     help="Path to folder containing subfolders to train faces.")
   parser.add_argument('--imgs_root', type=str, required=True,
                       help="Root directory of your image library.")
   parser.add_argument('--outdir', type=str, required=True,
                       help="Path to store the trained models.")
   args = parser.parse_args()
 
-  if not os.path.isdir(args.traindir):
+  if not os.path.isdir(args.imgs_root):
     print('args.traindir needs to be a valid folder')
     exit()
 
   if not os.path.isdir(args.outdir):
     utils.mkdir_p(args.outdir)
 
-  print('Training knn and svm model using data from {}.'.format(args.traindir))
-  train(args)
+  print('Training knn and svm model using data from {}.'.format(args.imgs_root))
+  train_detectors(args)
   print('Done.')
 
 if __name__ == "__main__":

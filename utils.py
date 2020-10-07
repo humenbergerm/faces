@@ -472,7 +472,7 @@ def resizeCV(img, w):
     return cv2.resize(img, (int(width), int(height)))
 
 
-def perform_key_action(args, key, faces, face_indices, names):
+def perform_key_action(args, key, faces, face_indices, names, img_path):
     if key == 99:  # key 'c'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
@@ -480,6 +480,7 @@ def perform_key_action(args, key, faces, face_indices, names):
         new_name = guided_input(faces)
         if new_name != "":
             faces.rename(face_indices[0], new_name)
+            faces.set_confirmed(face_indices[0], 1)
             print("face changed: {} ({})".format(new_name, len(faces.dict_by_name[faces.get_name_id(new_name)])))
     # elif key == 109:  # key 'm'
     #     # new_name = guided_input(preds_per_person)
@@ -505,13 +506,14 @@ def perform_key_action(args, key, faces, face_indices, names):
             return False
         faces.flip_confirmed(face_indices[0])
         name = faces.get_real_face_name(face_indices[0])
-        print("face confirmed: {} ({})".format(name, len(faces.dict_by_name[faces.get_name_id(name)])))
+        print("flipped confirmed: {} ({})".format(name, len(faces.dict_by_name[faces.get_name_id(name)])))
     elif key >= 48 and key <= 57:  # keys '0' - '9'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
             return False
         new_name = names[key - 48]
         faces.rename(face_indices[0], new_name)
+        faces.set_confirmed(face_indices[0], 1)
         print("face confirmed: {} ({})".format(new_name, len(faces.dict_by_name[faces.get_name_id(new_name)])))
     elif key == 100:  # key 'd'
         for fi in face_indices:
@@ -522,24 +524,17 @@ def perform_key_action(args, key, faces, face_indices, names):
             faces.rename(fi, 'DELETED')
             print("face deleted forever")
     elif key == 116:  # key 't'
-        print('t pressed')
-        # subprocess.call(["open", "-R", preds_per_person[cls][ix][1]])
+        subprocess.call(["open", "-R", img_path])
     elif key == 97:  # key 'a'
-        # To be checked!!!
-        # save.append(copy.deepcopy(preds_per_person))
-        # if save_idx != None:
-        #   save_idx.append(ix)
-        # for f in faces_files[preds_per_person[cls][ix][1]]:
-        #   del_cls, del_i = f
-        #   delete_element_preds_per_person(preds_per_person, del_cls, del_i)
-        #   if del_cls == cls and del_i <= ix:
-        #     deleted_elem_of_cls += 1
-        print('all faces in deleted.')
+        faces_to_delete = faces.dict_by_files[img_path].copy()
+        for fi in faces_to_delete:
+            faces.rename(fi, 'DELETED')
+        print('all faces in {} deleted forever'.format(img_path))
     elif key == 115:  # key 's'
         # export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
         print('saved')
     elif key == 122:  # key 'z'
-        print('z pessed')
+        print('z pressed')
         # tmp = preds_per_person[cls][ix]
         # show_face_crop(tmp[1], tmp[0][1])
     return True
@@ -834,13 +829,13 @@ def show_detections_on_image(locations, img_path, waitkey=True):
         return cv2.waitKey(1)
 
 
-def draw_rect(image, loc, scale, color, name=''):
+def draw_rect(image, loc, scale, color, name='', thickness=1):
     (top, right, bottom, left) = loc
     top = int(top * scale)
     right = int(right * scale)
     bottom = int(bottom * scale)
     left = int(left * scale)
-    cv2.rectangle(image, (left, top), (right, bottom), color, 1)
+    cv2.rectangle(image, (left, top), (right, bottom), color, thickness)
     if name != '':
         cv2.putText(image, name, (left + 5, top + 13), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
 
@@ -863,7 +858,7 @@ def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image, d
         draw_rect(image, preds_per_person[main_face][main_idx][0][1], ws, (255, 0, 0))  # blue
 
 
-def draw_faces_on_image(faces, face_indices, scale, image):
+def draw_faces_on_image(faces, face_indices, scale, image, main_face_idx=-1):
     for i in face_indices:
         cls = faces.get_real_face_name(i)
         if cls == 'unknown':
@@ -875,6 +870,12 @@ def draw_faces_on_image(faces, face_indices, scale, image):
         else:
             color = (0, 255, 0)  # green
         draw_rect(image, faces.get_loc(i), scale, color, cls)
+
+    if main_face_idx != -1:
+        if faces.get_confirmed(main_face_idx) == 1:
+            draw_rect(image, faces.get_loc(main_face_idx), scale, (255, 0, 0), "", 3)  # blue
+        else:
+            draw_rect(image, faces.get_loc(main_face_idx), scale, (255, 0, 0), "", 1)  # blue
 
 
 def draw_clicked_faces_on_image(faces, face_indices, scale, image):
@@ -1130,6 +1131,8 @@ def show_face_crop(img_path, loc):
         y = loc[0]
         w = loc[1] - x
         h = loc[2] - y
+        if not is_valid_roi(x, y, w, h, img.shape):
+            return
     roi = img[y:y + h, x:x + w]
     if roi.shape[1] > 300:
         roi = resizeCV(roi, 300)
@@ -1416,15 +1419,15 @@ class FACES:
     def remove_face_from_dicts(self, face_idx):
         face = self.get_face(face_idx)
         self.dict_by_files[face.path].pop(self.dict_by_files[face.path].index(face_idx))
-        if len(self.dict_by_files[face.path]) == 0:
-            self.dict_by_files.pop(face.path)
+        # if len(self.dict_by_files[face.path]) == 0:
+        #     self.dict_by_files.pop(face.path)
         self.dict_by_name[face.name].pop(self.dict_by_name[face.name].index(face_idx))
-        if len(self.dict_by_name[face.name]) == 0:
-            self.dict_by_name.pop(face.name)
+        # if len(self.dict_by_name[face.name]) == 0:
+        #     self.dict_by_name.pop(face.name)
         folder = os.path.dirname(face.path)
         self.dict_by_folders[folder][face.path].pop(self.dict_by_folders[folder][face.path].index(face_idx))
-        if len(self.dict_by_folders[folder][face.path]) == 0:
-            self.dict_by_folders[folder].pop(face.path)
+        # if len(self.dict_by_folders[folder][face.path]) == 0:
+        #     self.dict_by_folders[folder].pop(face.path)
 
     def rename(self, face_idx, name):
         self.remove_face_from_dicts(face_idx)
@@ -1458,22 +1461,54 @@ class FACES:
             return name_id
         return self.name2name_id[real_name]
 
+    def get_names(self, face_indices):
+        face_names = []
+        for fi in face_indices:
+            face_names.append(self.get_real_face_name(fi))
+        return face_names
+
+    def get_paths(self, face_indices, allow_duplicates=False):
+        face_paths = []
+        for fi in face_indices:
+            path = self.get_face_path(fi)
+            if not path in face_paths or allow_duplicates:
+                face_paths.append(path)
+        return face_paths
+
+    def get_face_idxs_by_name_and_file(self, name_id, path):
+        faces_indices = []
+        for fi in self.dict_by_name[name_id]:
+            if self.faces[fi].path == path:
+                if not fi in faces_indices:
+                    faces_indices.append(fi)
+        return faces_indices
+
+    def get_paths_from_folder(self, folder):
+        face_paths = []
+        for fp in self.dict_by_folders[folder]:
+            face_paths.append(fp)
+        return face_paths
+
     def get_face(self, face_idx):
         return self.faces[face_idx]
 
     def flip_confirmed(self, face_idx):
-        if self.faces[face_idx].confirmed == 0:
+        if self.faces[face_idx].confirmed in [0, 2]:
             self.faces[face_idx].confirmed = 1
         else:
             self.faces[face_idx].confirmed = 0
 
-    # def get_faces_dicts(self):
-    #     self.dict_by_name = {}
-    #     self.dict_by_files = {}
-    #     self.dict_by_folders = {}
-    #
-    #     for i,f in enumerate(self.faces):
-    #         self.add_face_to_dicts(f, i)
+        if not self.faces[face_idx].path in self.changed_files:
+            self.changed_files.append(self.faces[face_idx].path)
+
+    def set_confirmed(self, face_idx, confirmed):
+        if confirmed != self.faces[face_idx].confirmed:
+            if not self.faces[face_idx].path in self.changed_files:
+                self.changed_files.append(self.faces[face_idx].path)
+        self.faces[face_idx].confirmed = confirmed
+
+    def get_confirmed(self, face_idx):
+        return self.faces[face_idx].confirmed
 
     def get_name_id2names(self, path):
         self.name_id2name = {}
@@ -1483,6 +1518,22 @@ class FACES:
             for row in enumerate(filereader):
                 self.name_id2name[row[0]] = row[1][1]
         self.name2name_id = dict(map(reversed, self.name_id2name.items()))
+
+    def get_number_of_faces_by_name(self, real_name):
+        return len(self.dict_by_name[self.get_name_id(real_name)])
+
+    def get_unconfirmed(self, confirmation):
+        unknown = self.get_name_id('unknown')
+        deleted = self.get_name_id('deleted')
+        if confirmation == 'predicted':
+            status = 2
+        elif confirmation == 'unconfirmed':
+            status = 0
+        unconfirmed = []
+        for i,face in enumerate(self.faces):
+            if face.confirmed == status and face.name not in [unknown, deleted]:
+                unconfirmed.append(i)
+        return unconfirmed
 
     def store_name_id2_names(self, path):
         names_path = os.path.join(path, 'name_mapping.csv')
@@ -1520,13 +1571,27 @@ class FACES:
             for f1 in self.dict_by_files[df]:
                 l1 = self.get_loc(f1)
                 n1 = self.get_real_face_name(f1)
+                p1 = Polygon([(l1[3], l1[0]), (l1[1], l1[0]), (l1[1], l1[2]), (l1[3], l1[2])])
                 for f2 in self.dict_by_files[df]:
                     if f1 == f2:
                         continue
                     l2 = self.get_loc(f2)
                     n2 = self.get_real_face_name(f2)
+                    p2 = Polygon([(l2[3], l2[0]), (l2[1], l2[0]), (l2[1], l2[2]), (l2[3], l2[2])])
                     if l1 == l2 and n1 != 'DELETED' and n2 != 'DELETED':
                         self.rename(f2, 'DELETED')
+                    if p1.intersects(p2):
+                        iou = get_iou(p1, p2)
+                        if iou > 0.5 and n1 != 'DELETED' and n2 != 'DELETED' and n1 != 'deleted' and n2 != 'deleted':
+                            self.rename(f2, 'DELETED')
+
+    def store_to_single_file(self, path):
+        with open(path, 'wb') as fid:
+            pickle.dump(self.faces, fid)
+
+    def load_from_single_file(self, path):
+        with open(path, 'rb') as fid:
+            self.faces = pickle.load(fid)
 
 class IMG_LABELS:
     def __init__(self, timestamp):
