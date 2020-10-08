@@ -39,9 +39,14 @@ def detect_faces_in_folder(args, faces, img_labels, files, total_faces):
     configFile = "models/opencv_face_detector.pbtxt"
     net = cv2.dnn.readNetFromTensorflow(modelFile, configFile)
 
+    # dlib face detector
     detector = dlib.get_frontal_face_detector()
     sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
     facerec = dlib.face_recognition_model_v1("models/dlib_face_recognition_resnet_model_v1.dat")
+
+    # MTCNN
+    # from mtcnn.mtcnn import MTCNN
+    # detectorMTCNN = MTCNN()
 
     # Find all the faces and compute 128D face descriptors for each face.
     for n, f in enumerate(files):
@@ -49,15 +54,25 @@ def detect_faces_in_folder(args, faces, img_labels, files, total_faces):
         processed_faces = processed_faces + 1
 
         img_path = os.path.splitext(f)[0] + os.path.splitext(f)[1].lower()
-        if img_path in img_labels:
+        if img_path in img_labels and not args.recompute:
             print('file already processed, skipping, ...')
             continue
 
+        # img = cv2.imread(f)
+        # height, width = img.shape[:2]
+        # ws = 600.0 / float(height)
+        # img = cv2.resize(img, (int(width * ws), int(height * ws)))
+
+        # locations_mtcnn, descriptors_mtcnn, imagesize = utils.detect_faces_in_image_MTCNN(f, detectorMTCNN, facerec, sp, detector)
+        # utils.show_detections_on_image(locations_mtcnn, img, ws, (255, 0, 0))
+
         locations_cv2, descriptors_cv2, imagesize = utils.detect_faces_in_image_cv2(f, net, facerec, sp, detector)
         print('cv2: {} detection(s) found'.format(len(locations_cv2)))
+        # utils.show_detections_on_image(locations_cv2, img, ws, (0, 255, 0))
 
         locations, descriptors, imagesize = utils.detect_faces_in_image(f, detector, facerec, sp)
         print('dlib: {} detection(s) found'.format(len(locations)))
+        # utils.show_detections_on_image(locations, img, ws, (0, 0, 255))
 
         # merge detections dlib and cv2
         locs, descs = utils.merge_detections(locations, descriptors, locations_cv2, descriptors_cv2)

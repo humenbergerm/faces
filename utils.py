@@ -396,6 +396,26 @@ def detect_faces_in_image_cv2(img_path, net, facerec, sp, detector):
     return locations, descriptors, imagesize
 
 
+def detect_faces_in_image_MTCNN(img_path, mtcnn, facerec, sp, detector):
+    opencvImage = cv2.imread(img_path)
+    h, w = opencvImage.shape[:2]
+
+    faces = mtcnn.detect_faces(opencvImage)
+    dets = []
+    for result in faces:
+        if result['confidence'] > 0.5:
+            # get coordinates
+            x1, y1, width, height = result['box']
+            x2 = x1 + width
+            y2 = y1 + height
+            d = dlib.rectangle(x1, y1, x2, y2)
+            dets.append(d)
+
+    locations, descriptors, imagesize = detect_faces_in_image(img_path, detector, facerec, sp, dets=dets)
+
+    return locations, descriptors, imagesize
+
+
 def initialize_face_data(preds_per_person, cls):
     face_locations = []
     face_encodings = []
@@ -807,12 +827,12 @@ def click(event, x, y, flags, params):
     cv2.imshow("faces", image)
 
 
-def show_detections_on_image(locations, img_path, waitkey=True):
-    opencvImage = cv2.imread(img_path)
+def show_detections_on_image(locations, opencvImage, ws, color, waitkey=True):
+    # opencvImage = cv2.imread(img_path)
 
-    height, width = opencvImage.shape[:2]
-    ws = 600.0 / float(height)
-    opencvImage = cv2.resize(opencvImage, (int(width * ws), int(height * ws)))
+    # height, width = opencvImage.shape[:2]
+    # ws = 600.0 / float(height)
+    # opencvImage = cv2.resize(opencvImage, (int(width * ws), int(height * ws)))
 
     for l in locations:
         (top, right, bottom, left) = l
@@ -820,7 +840,7 @@ def show_detections_on_image(locations, img_path, waitkey=True):
         right = int(right * ws)
         bottom = int(bottom * ws)
         left = int(left * ws)
-        cv2.rectangle(opencvImage, (left, top), (right, bottom), (0, 255, 0), 1)
+        cv2.rectangle(opencvImage, (left, top), (right, bottom), color, 1)
 
     cv2.imshow("detections", opencvImage)
     if waitkey:

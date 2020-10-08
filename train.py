@@ -94,8 +94,10 @@ def train_detectors(args):
     real_name = faces.get_real_name(p)
     if real_name != 'unknown' and real_name != 'deleted' and real_name != 'detected':
       for l in faces.dict_by_name[p]:
-        X.append(faces.get_desc(l))
-        y.append(real_name)
+        confirmed = faces.get_confirmed(l)
+        if not confirmed in [2]:
+          X.append(faces.get_desc(l))
+          y.append(real_name)
 
   if len(X) == 0:
     print('No faces found in database {}'.format(args.imgs_root))
