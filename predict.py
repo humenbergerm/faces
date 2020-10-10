@@ -54,7 +54,7 @@ def predict_faces(args, knn_clf, svm_clf):
                         name = 'unknown'
                         # faces.rename(fi, name)
 
-            # if name != args.cls and name != 'unknown' and name != 'deleted' and name != 'DELETED':
+            if name != args.cls and name != 'unknown' and name != 'deleted' and name != 'DELETED':
                 if args.confirm:
                     utils.show_face_crop(img_path, face.loc)
                     utils.draw_faces_on_image(faces, faces.dict_by_files[img_path], scale, opencvImage, fi)

@@ -727,7 +727,7 @@ def click_face(event, x, y, flags, params):
                 right = int(right * scale)
                 bottom = int(bottom * scale)
                 left = int(left * scale)
-                if p.contains(Point(left, top)):
+                if p.contains(Point(left, top)) and p.contains(Point(right, bottom)):
                     cv2.rectangle(tmp_img, (left, top), (right, bottom), (255, 128, 0), 1)
                     if not i in clicked_idx:
                         clicked_idx.append(i)
@@ -737,23 +737,25 @@ def click_face(event, x, y, flags, params):
             cv2.waitKey(1)
 
             if len(clicked_idx) == 0:
-                new_name = faces.get_name_id('unknown')
-                if new_name != "":
-                    new_loc = get_rect_from_pts(refPt,
-                                                scale)  # order in preds_per_person: (top(), right(), bottom(), left())
-                    d = dlib.rectangle(new_loc[3], new_loc[0], new_loc[1], new_loc[2])
-                    opencvImage = cv2.imread(img_label.path)
-                    shape = sp(opencvImage, d)
-                    face_descriptor = facerec.compute_face_descriptor(opencvImage, shape)
-                    new_desc = np.array(face_descriptor)
+                new_loc = get_rect_from_pts(refPt,
+                                            scale)  # order in preds_per_person: (top(), right(), bottom(), left())
+                d = dlib.rectangle(new_loc[3], new_loc[0], new_loc[1], new_loc[2])
+                opencvImage = cv2.imread(img_label.path)
+                shape = sp(opencvImage, d)
+                face_descriptor = facerec.compute_face_descriptor(opencvImage, shape)
+                new_desc = np.array(face_descriptor)
 
-                    face = FACE(new_loc, new_desc, new_name, img_label.timestamp, 0)
-                    face.path = img_label.path
-                    faces.add(face)
-                    draw_faces_on_image(faces, faces.dict_by_files[face.path], scale, tmp_img)
-                    cv2.imshow("faces", tmp_img)
-                    cv2.waitKey(1)
-                    print('New unknown face added.')
+                clicked_names, new_probs = predict_face_svm(new_desc, svm_clf)
+                new_name = faces.get_name_id(clicked_names[0])
+
+                face = FACE(new_loc, new_desc, new_name, img_label.timestamp, 0)
+                face.path = img_label.path
+                faces.add(face)
+                clicked_idx = [len(faces.faces) - 1]
+                draw_faces_on_image(faces, faces.dict_by_files[face.path], scale, tmp_img, main_face_idx=clicked_idx[0])
+                cv2.imshow("faces", tmp_img)
+                cv2.waitKey(1)
+                print('New face added.')
         refPt = []
     # else:
     #     draw_faces_on_image(faces, faces.dict_by_files[img_label.path], scale, tmp_img)
@@ -1560,7 +1562,13 @@ class FACES:
         with open(names_path, "w") as csvfile:
             filewriter = csv.writer(csvfile, delimiter=';')
             for n in self.name_id2name:
-                filewriter.writerow([n, self.name_id2name[n]])
+                if n in self.dict_by_name:
+                    if len(self.dict_by_name[n]) != 0:
+                        filewriter.writerow([n, self.name_id2name[n]])
+                    else:
+                        print('no faces found for {} -> name deleted'.format(n))
+                else:
+                    print('no faces found for {} -> name deleted'.format(n))
 
     def store_file_to_img_labels(self, file, timestamp=''):
         if timestamp == '':

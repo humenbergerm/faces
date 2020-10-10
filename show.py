@@ -80,7 +80,7 @@ def show_faces_in_folder(args, svm_clf):
 
     faces.store_to_img_labels(args.imgs_root)
 
-def show_faces_by_name(args, svm_clf):
+def show_faces_by_name(args, svm_clf, knn_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
     faces = utils.FACES(tmp_faces, args.imgs_root)
 
@@ -117,7 +117,10 @@ def show_faces_by_name(args, svm_clf):
         else:
             main_idx = main_face[0]
         utils.draw_faces_on_image(faces, faces.dict_by_files[img_path], scale, opencvImage, main_idx)
-        utils.clicked_names, probs = utils.predict_face_svm(faces.get_face(main_idx).desc, svm_clf)
+        if main_idx != -1:
+            utils.clicked_names, probs = utils.predict_face_svm(faces.get_face(main_idx).desc, svm_clf)
+            name_knn = utils.predict_knn(knn_clf, faces.get_face(main_idx).desc, n=7, thresh=0.3)
+            print('knn: {}'.format(name_knn))
         cv2.imshow("faces", opencvImage)
         cv2.setMouseCallback("faces", utils.click_face, (opencvImage_clean, faces, scale, img_labels[img_path], svm_clf))
         key = cv2.waitKey(0)
@@ -158,7 +161,7 @@ def show_unconfirmed_faces(args, svm_clf):
     unconfirmed = faces.get_unconfirmed(args.face)
 
     if len(unconfirmed) == 0:
-        print('no newly predicted faces found')
+        print('no newly predicted or unconfirmed faces found')
         return False
 
     files = faces.get_paths(unconfirmed, allow_duplicates=True)
@@ -359,8 +362,8 @@ def main():
                       help="Face to show ('all' shows all faces).")
   parser.add_argument('--svm', type=str, required=True,
                       help="Path to svm model file (e.g. svm.clf).")
-  # parser.add_argument('--knn', type=str, required=True,
-  #                     help="Path to knn model file (e.g. knn.clf).")
+  parser.add_argument('--knn', type=str, required=True,
+                      help="Path to knn model file (e.g. knn.clf).")
   # parser.add_argument('--db', type=str, required=True,
   #                     help="Path to folder with predicted faces (.csv files).")
   parser.add_argument('--imgs_root', type=str, required=True,
@@ -374,12 +377,12 @@ def main():
   # if not os.path.isdir(args.db):
   #     print('args.db is not a valid directory')
 
-  # if os.path.isfile(args.knn):
-  #   with open(args.knn, 'rb') as f:
-  #     knn_clf = pickle.load(f)
-  # else:
-  #   print('args.knn ({}) is not a valid file'.format(args.knn))
-  #   exit()
+  if os.path.isfile(args.knn):
+    with open(args.knn, 'rb') as f:
+      knn_clf = pickle.load(f)
+  else:
+    print('args.knn ({}) is not a valid file'.format(args.knn))
+    exit()
 
   if os.path.isfile(args.svm):
       with open(args.svm, 'rb') as f:
@@ -397,7 +400,7 @@ def main():
           show_unconfirmed_faces(args, svm_clf)
       else:
         print('Showing detections of class {}'.format(args.face))
-        show_faces_by_name(args, svm_clf)
+        show_faces_by_name(args, svm_clf, knn_clf)
 
   print('Done.')
 
