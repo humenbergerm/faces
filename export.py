@@ -262,8 +262,9 @@ def prepare_face_names(faces_list):
 
 
 def export_to_csv(args):
-    preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
-    files_faces = utils.get_faces_in_files(preds_per_person, ignore_unknown=True)
+    tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+    faces = utils.FACES(tmp_faces, args.imgs_root)
+
     faces_csv_path = os.path.join(args.outdir, 'faces.csv')
     faces_input_csv_path = os.path.join(args.outdir, 'faces_exiftool.csv')
 
@@ -277,31 +278,30 @@ def export_to_csv(args):
         header = ['SourceFile', 'Keywords']
         # header = ['SourceFile','Subject','XPKeywords','LastKeywordXMP','LastKeywordIPTC','UserComment']
         filewriter.writerow(header)
-        for e, f in enumerate(files_faces):
-            print('{}/{}'.format(e, len(files_faces)))
+        for e, f in enumerate(faces.dict_by_files):
+            print('{}/{}'.format(e, len(faces.dict_by_files)))
             if os.path.dirname(f) != args.mask_folder and args.mask_folder != None:
                 continue
             relpath = './' + os.path.relpath(f, args.imgs_root)
             row = [relpath]
-            faces = []
-            if len(files_faces[f]) == 1:
-                face_name = prepare_face_name(files_faces[f][0][0])
-                faces.append(face_name)
+            face_names = []
+            if len(faces.dict_by_files[f]) == 1:
+                face_name = prepare_face_name(faces.get_face(faces.dict_by_files[f][0]).name)
+                face_names.append(face_name)
             else:
                 str = ''
                 tmp_faces = []
-                for i in files_faces[f]:
-                    face_name = prepare_face_name(i[0])
+                for i in faces.dict_by_files[f]:
+                    face_name = prepare_face_name(faces.get_face(i).name)
                     if not face_name in tmp_faces:
                         str += face_name + ','
                         tmp_faces.append(face_name)
-                faces.append(str[:-1])
+                face_names.append(str[:-1])
             if files_faces_csv != None:
                 if files_faces_csv.get(relpath) != None:
-                    if files_faces_csv[relpath].replace(' ', '') == faces[0].replace(' ', ''):
+                    if files_faces_csv[relpath].replace(' ', '') == face_names[0].replace(' ', ''):
                         continue
             row += faces
-            # row += ['-','-','-','-','-']
             filewriter.writerow(row)
 
 
