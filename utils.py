@@ -13,6 +13,8 @@ from shapely.ops import cascaded_union
 from datetime import datetime
 from PIL import Image
 import piexif
+import math
+from sklearn import neighbors
 
 
 # from matplotlib import pyplot as plt
@@ -225,6 +227,39 @@ def load_faces_from_csv(preds_per_person_path, imgs_root=''):
     print('unknown/known = {}/{}'.format(len(preds_per_person['unknown']),
                                          total - len(preds_per_person['unknown']) - len(preds_per_person['deleted'])))
     return preds_per_person
+
+
+def train_knn(faces, outpath):
+    X = []
+    y = []
+    for p in faces.dict_by_name:
+        real_name = faces.get_real_name(p)
+        if real_name != 'unknown' and real_name != 'deleted' and real_name != 'detected' and real_name != 'DELETED':
+          for l in faces.dict_by_name[p]:
+            confirmed = faces.get_confirmed(l)
+            if not confirmed in [2]:
+              X.append(faces.get_desc(l))
+              y.append(real_name)
+
+    if len(X) == 0:
+        print('No faces found in database')
+        return
+
+    # Determine how many neighbors to use for weighting in the KNN classifier
+    n_neighbors = int(round(math.sqrt(len(X))))
+    # n_neighbors = 100
+    print("Chose n_neighbors automatically:", n_neighbors)
+
+    # Create and train the KNN classifier
+    print("Training model with KNN ...")
+    knn_clf = neighbors.KNeighborsClassifier(n_neighbors=n_neighbors, algorithm='auto', weights='distance')
+    knn_clf.fit(X, y)
+
+    # Save the trained KNN classifier
+    with open(outpath, 'wb') as f:
+        pickle.dump(knn_clf, f)
+
+    return knn_clf
 
 
 def get_nr_after_filter(mask, preds_class):
@@ -492,7 +527,7 @@ def resizeCV(img, w):
     return cv2.resize(img, (int(width), int(height)))
 
 
-def perform_key_action(args, key, faces, face_indices, names, img_path):
+def perform_key_action(args, key, faces, face_indices, names, img_path, knn_clf):
     if key == 99:  # key 'c'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
@@ -501,7 +536,7 @@ def perform_key_action(args, key, faces, face_indices, names, img_path):
         if new_name != "":
             faces.rename(face_indices[0], new_name)
             faces.set_confirmed(face_indices[0], 1)
-            print("face changed: {} ({})".format(new_name, len(faces.dict_by_name[faces.get_name_id(new_name)])))
+            print("face changed: {} ({})".format(new_name, len(faces.dict_by_name[new_name])))
     # elif key == 109:  # key 'm'
     #     # new_name = guided_input(preds_per_person)
     #     # if new_name != "":
@@ -519,14 +554,14 @@ def perform_key_action(args, key, faces, face_indices, names, img_path):
             return False
         new_name = 'unknown'
         faces.rename(face_indices[0], new_name)
-        print("face confirmed: {} ({})".format(new_name, len(faces.dict_by_name[faces.get_name_id(new_name)])))
+        print("face confirmed: {} ({})".format(new_name, len(faces.dict_by_name[new_name])))
     elif key == 47:  # key '/'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
             return False
         faces.flip_confirmed(face_indices[0])
-        name = faces.get_real_face_name(face_indices[0])
-        print("flipped confirmed: {} ({})".format(name, len(faces.dict_by_name[faces.get_name_id(name)])))
+        name = faces.get_face(face_indices[0]).name
+        print("flipped confirmed: {} ({})".format(name, len(faces.dict_by_name[name])))
     elif key >= 48 and key <= 57:  # keys '0' - '9'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
@@ -534,7 +569,7 @@ def perform_key_action(args, key, faces, face_indices, names, img_path):
         new_name = names[key - 48]
         faces.rename(face_indices[0], new_name)
         faces.set_confirmed(face_indices[0], 1)
-        print("face confirmed: {} ({})".format(new_name, len(faces.dict_by_name[faces.get_name_id(new_name)])))
+        print("face confirmed: {} ({})".format(new_name, len(faces.dict_by_name[new_name])))
     elif key == 100:  # key 'd'
         for fi in face_indices:
             faces.rename(fi, 'deleted')
@@ -545,6 +580,9 @@ def perform_key_action(args, key, faces, face_indices, names, img_path):
             print("face deleted forever")
     elif key == 116:  # key 't'
         subprocess.call(["open", "-R", img_path])
+    elif key == 107:
+        print('retraining knn')
+        knn_clf = train_knn(faces, args.knn)
     elif key == 97:  # key 'a'
         faces_to_delete = faces.dict_by_files[img_path].copy()
         for fi in faces_to_delete:
@@ -710,8 +748,9 @@ def click_face(event, x, y, flags, params):
                 cv2.imshow("faces", tmp_img)
                 cv2.waitKey(1)
                 if len(clicked_idx) == 1:
-                    print('clicked class: {}, clicked index: {}'.format(faces.get_real_face_name(clicked_idx[0]),
+                    print('clicked class: {}, clicked index: {}'.format(faces.get_face(clicked_idx[0]).name,
                                                                         clicked_idx[0]))
+                    show_face_crop(img_label.path, faces.get_face(clicked_idx[0]).loc)
                     clicked_names, probs = predict_face_svm(faces.get_face(clicked_idx[0]).desc, svm_clf)
                     print_top_svm(clicked_names, probs)
                 break
@@ -746,7 +785,8 @@ def click_face(event, x, y, flags, params):
                 new_desc = np.array(face_descriptor)
 
                 clicked_names, new_probs = predict_face_svm(new_desc, svm_clf)
-                new_name = faces.get_name_id(clicked_names[0])
+                # new_name = faces.get_name_id(clicked_names[0])
+                new_name = clicked_names[0]
 
                 face = FACE(new_loc, new_desc, new_name, img_label.timestamp, 0)
                 face.path = img_label.path
@@ -882,7 +922,7 @@ def draw_rects(face_indices, preds_per_person, main_face, main_idx, ws, image, d
 
 def draw_faces_on_image(faces, face_indices, scale, image, main_face_idx=-1):
     for i in face_indices:
-        cls = faces.get_real_face_name(i)
+        cls = str(faces.get_face(i).name)
         if cls == 'unknown':
             color = (0, 0, 255)  # red
         elif cls.lower() == 'deleted':
@@ -987,15 +1027,15 @@ def show_prediction_labels_on_image(predictions, pil_image, confirmed=None, inde
 
 
 def guided_input(faces):
-    options = list(faces.name2name_id.keys())
+    options = list(faces.dict_by_name.keys())
 
     user_input = input("Enter new name: ")
 
     filtered_names = []
 
     for i in options:
-        if user_input in i:
-            filtered_names.append(i)
+        if user_input in str(i):
+            filtered_names.append(str(i))
 
     if len(filtered_names) > 1:
         # Deal with more that one team.
@@ -1402,9 +1442,24 @@ class FACES:
         for f in faces:
             self.add(f, do_not_add_to_changed=True)
 
-        self.get_name_id2names(names_path)
+        # self.get_name_id2names(names_path)
+        #
+        # self.dict_by_name = {}
+        # self.dict_by_files = {}
+        # self.dict_by_folders = {}
+        # for i,f in enumerate(faces):
+        #     if f.name in self.name_id2name:
+        #         f.name = self.get_real_name(f.name)
+        #     self.add_face_to_dicts(f, i)
 
         # self.remove_duplictes()
+
+    def initialize_dicts(self):
+        self.dict_by_name = {}
+        self.dict_by_files = {}
+        self.dict_by_folders = {}
+        for i, f in enumerate(self.faces):
+            self.add_face_to_dicts(f, i)
 
     def add(self, face, do_not_add_to_changed=False):
         img_path = os.path.splitext(face.path)[0] + os.path.splitext(face.path)[1].lower()
@@ -1451,10 +1506,12 @@ class FACES:
         # if len(self.dict_by_folders[folder][face.path]) == 0:
         #     self.dict_by_folders[folder].pop(face.path)
 
-    def rename(self, face_idx, name):
-        self.remove_face_from_dicts(face_idx)
-        self.faces[face_idx].name = self.get_name_id(name)
-        self.add_face_to_dicts(self.faces[face_idx], face_idx)
+    def rename(self, face_idx, name, change_dicts=True):
+        if change_dicts:
+            self.remove_face_from_dicts(face_idx)
+        self.faces[face_idx].name = name
+        if change_dicts:
+            self.add_face_to_dicts(self.faces[face_idx], face_idx)
 
         if not self.faces[face_idx].path in self.changed_files:
             self.changed_files.append(self.faces[face_idx].path)
@@ -1468,25 +1525,28 @@ class FACES:
     def get_face_path(self, face_idx):
         return self.faces[face_idx].path
 
-    def get_real_face_name(self, face_idx):
-        name_id = self.faces[face_idx].name
-        return self.name_id2name[name_id]
+    # def get_real_face_name(self, face_idx):
+    #     name_id = self.faces[face_idx].name
+    #     if not name_id in self.name_id2name:
+    #         print('{} not found in name_id2name'.format(name_id))
+    #         return 'no_name'
+    #     return self.name_id2name[name_id]
 
-    def get_real_name(self, name_id):
-        return self.name_id2name[name_id]
+    # def get_real_name(self, name_id):
+    #     return self.name_id2name[name_id]
 
-    def get_name_id(self, real_name):
-        if not real_name in self.name2name_id:
-            name_id = len(self.name_id2name)
-            self.name_id2name[name_id] = real_name
-            self.name2name_id = dict(map(reversed, self.name_id2name.items()))
-            return name_id
-        return self.name2name_id[real_name]
+    # def get_name_id(self, real_name):
+    #     if not real_name in self.name2name_id:
+    #         name_id = len(self.name_id2name)
+    #         self.name_id2name[name_id] = real_name
+    #         self.name2name_id = dict(map(reversed, self.name_id2name.items()))
+    #         return name_id
+    #     return self.name2name_id[real_name]
 
     def get_names(self, face_indices):
         face_names = []
         for fi in face_indices:
-            face_names.append(self.get_real_face_name(fi))
+            face_names.append(self.get_face(fi).name)
         return face_names
 
     def get_paths(self, face_indices, allow_duplicates=False):
@@ -1497,9 +1557,9 @@ class FACES:
                 face_paths.append(path)
         return face_paths
 
-    def get_face_idxs_by_name_and_file(self, name_id, path):
+    def get_face_idxs_by_name_and_file(self, name, path):
         faces_indices = []
-        for fi in self.dict_by_name[name_id]:
+        for fi in self.dict_by_name[name]:
             if self.faces[fi].path == path:
                 if not fi in faces_indices:
                     faces_indices.append(fi)
@@ -1532,43 +1592,19 @@ class FACES:
     def get_confirmed(self, face_idx):
         return self.faces[face_idx].confirmed
 
-    def get_name_id2names(self, path):
-        self.name_id2name = {}
-        names_path = os.path.join(path, 'name_mapping.csv')
-        with open(names_path, 'r') as csvfile:
-            filereader = csv.reader(csvfile, delimiter=';')
-            for row in enumerate(filereader):
-                self.name_id2name[row[0]] = row[1][1]
-        self.name2name_id = dict(map(reversed, self.name_id2name.items()))
-
-    def get_number_of_faces_by_name(self, real_name):
-        return len(self.dict_by_name[self.get_name_id(real_name)])
+    def get_number_of_faces_by_name(self, name):
+        return len(self.dict_by_name[name])
 
     def get_unconfirmed(self, confirmation):
-        unknown = self.get_name_id('unknown')
-        deleted = self.get_name_id('deleted')
         if confirmation == 'predicted':
             status = 2
         elif confirmation == 'unconfirmed':
             status = 0
         unconfirmed = []
         for i,face in enumerate(self.faces):
-            if face.confirmed == status and face.name not in [unknown, deleted]:
+            if face.confirmed == status and face.name not in ['unknown', 'deleted']:
                 unconfirmed.append(i)
         return unconfirmed
-
-    def store_name_id2_names(self, path):
-        names_path = os.path.join(path, 'name_mapping.csv')
-        with open(names_path, "w") as csvfile:
-            filewriter = csv.writer(csvfile, delimiter=';')
-            for n in self.name_id2name:
-                if n in self.dict_by_name:
-                    if len(self.dict_by_name[n]) != 0:
-                        filewriter.writerow([n, self.name_id2name[n]])
-                    else:
-                        print('no faces found for {} -> name deleted'.format(n))
-                else:
-                    print('no faces found for {} -> name deleted'.format(n))
 
     def store_file_to_img_labels(self, file, timestamp=''):
         if timestamp == '':
@@ -1577,7 +1613,7 @@ class FACES:
         img_labels = IMG_LABELS(timestamp)
         if file in self.dict_by_files:
             for f in self.dict_by_files[file]:
-                if self.get_real_face_name(f) != 'DELETED':
+                if self.get_face(f).name != 'DELETED':
                     img_labels.faces.append(self.get_face(f))
 
         print('Saving changes in {}'.format(file))
@@ -1589,7 +1625,6 @@ class FACES:
         for to_save in self.changed_files:
             self.store_file_to_img_labels(to_save)
 
-        self.store_name_id2_names(path)
         self.changed_files = []
 
         print('Stored faces to .pkl files.')
@@ -1598,13 +1633,13 @@ class FACES:
         for df in self.dict_by_files:
             for f1 in self.dict_by_files[df]:
                 l1 = self.get_loc(f1)
-                n1 = self.get_real_face_name(f1)
+                n1 = self.get_face(f1).name
                 p1 = Polygon([(l1[3], l1[0]), (l1[1], l1[0]), (l1[1], l1[2]), (l1[3], l1[2])])
                 for f2 in self.dict_by_files[df]:
                     if f1 == f2:
                         continue
                     l2 = self.get_loc(f2)
-                    n2 = self.get_real_face_name(f2)
+                    n2 = self.self.get_face(f2).name
                     p2 = Polygon([(l2[3], l2[0]), (l2[1], l2[0]), (l2[1], l2[2]), (l2[3], l2[2])])
                     if l1 == l2 and n1 != 'DELETED' and n2 != 'DELETED':
                         self.rename(f2, 'DELETED')

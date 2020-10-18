@@ -9,36 +9,6 @@ import subprocess
 
 import utils
 
-def increment_from(start, preds_per_person, cls, mask, nr_of_faces):
-  ix = start + 1
-  if ix >= nr_of_faces:
-    return 0, True
-  while mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix < nr_of_faces - 1:
-    ix += 1
-  if ix >= nr_of_faces - 1:
-    if utils.get_nr_after_filter(mask, preds_per_person[cls]) == 0:
-      return 0, False
-    else:
-      # return 0, True # roll over to zero
-      return increment_from(-1, preds_per_person, cls, mask, nr_of_faces)
-  else:
-    return ix, True
-
-def decrement_from(start, preds_per_person, cls, mask, nr_of_faces):
-  ix = start - 1
-  if ix < 0:
-    return nr_of_faces-1, True
-  while mask[preds_per_person[cls][ix][1]][preds_per_person[cls][ix][0][1]] != 1 and ix >= 0:
-    ix -= 1
-  if ix <= 0:
-    if utils.get_nr_after_filter(mask, preds_per_person[cls]) == 0:
-      return 0, False
-    else:
-      # return nr_of_faces - 1, True # roll over to the end
-      return decrement_from(nr_of_faces, preds_per_person, cls, mask, nr_of_faces)
-  else:
-    return ix, True
-
 def show_faces_in_folder(args, svm_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
     faces = utils.FACES(tmp_faces, args.imgs_root)
@@ -80,17 +50,12 @@ def show_faces_in_folder(args, svm_clf):
 
     faces.store_to_img_labels(args.imgs_root)
 
-def show_faces_by_name(args, svm_clf, knn_clf):
-    tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
-
-    name_id = faces.get_name_id(args.face)
-
-    if not name_id in faces.dict_by_name:
+def show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels):
+    if not args.face in faces.dict_by_name:
         print('no faces found in this class')
         return False
 
-    files = faces.get_paths(faces.dict_by_name[name_id])
+    files = faces.get_paths(faces.dict_by_name[args.face])
 
     i = 0
     key = 0
@@ -101,7 +66,7 @@ def show_faces_by_name(args, svm_clf, knn_clf):
         if i > len(files) - 1:
             i = 0
 
-        str_count = str(i + 1) + ' / ' + str(len(files)) + ' #' + args.face + ': ' + str(faces.get_number_of_faces_by_name(args.face))
+        str_count = str(i + 1) + ' / ' + str(len(files)) + ' #' + str(args.face) + ': ' + str(faces.get_number_of_faces_by_name(args.face))
         print(str_count)
 
         img_path = files[i]
@@ -111,7 +76,7 @@ def show_faces_by_name(args, svm_clf, knn_clf):
         opencvImage = cv2.resize(opencvImage, (int(width * scale), int(height * scale)))
         opencvImage_clean = opencvImage.copy()
 
-        main_face = faces.get_face_idxs_by_name_and_file(name_id, img_path)
+        main_face = faces.get_face_idxs_by_name_and_file(args.face, img_path)
         if len(main_face) == 0:
             main_idx = -1
         else:
@@ -121,15 +86,16 @@ def show_faces_by_name(args, svm_clf, knn_clf):
             utils.clicked_names, probs = utils.predict_face_svm(faces.get_face(main_idx).desc, svm_clf)
             name_knn = utils.predict_knn(knn_clf, faces.get_face(main_idx).desc, n=7, thresh=0.3)
             print('knn: {}'.format(name_knn))
+            utils.show_face_crop(img_path, faces.get_face(main_idx).loc)
         cv2.imshow("faces", opencvImage)
         cv2.setMouseCallback("faces", utils.click_face, (opencvImage_clean, faces, scale, img_labels[img_path], svm_clf))
         key = cv2.waitKey(0)
         if len(utils.clicked_idx) == 0 and main_idx != -1:
             utils.clicked_idx.append(main_idx)
-        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path)
+        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path, knn_clf)
         utils.clicked_idx = []
 
-        if not name_id in faces.dict_by_name:
+        if args.face not in faces.dict_by_name:
             print('no faces found in this class')
             return False
 
@@ -146,13 +112,29 @@ def show_faces_by_name(args, svm_clf, knn_clf):
                     i += 1
                     if i >= len(files):
                         break
-                    next_face = faces.get_face_idxs_by_name_and_file(name_id, files[i])
+                    next_face = faces.get_face_idxs_by_name_and_file(args.face, files[i])
                     if len(next_face) == 0:
                         next_idx = -1
                     else:
                         next_idx = next_face[0]
+        # elif key == 118:  # key 'v'
+        #     new_name = utils.guided_input(faces)
+        #
+        #     if new_name != "":
+        #         for f in faces.dict_by_name[args.face]:
+        #             faces.rename(f, new_name, change_dicts=False)
+        #         faces.initialize_dicts()
+        #         args.face = new_name
 
     faces.store_to_img_labels(args.imgs_root)
+
+def show_all_faces(args, svm_clf, knn_clf):
+    tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+    faces = utils.FACES(tmp_faces, args.imgs_root)
+
+    for i,n in enumerate(faces.dict_by_name):
+        args.face = n
+        show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels)
 
 def show_unconfirmed_faces(args, svm_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
@@ -400,7 +382,10 @@ def main():
           show_unconfirmed_faces(args, svm_clf)
       else:
         print('Showing detections of class {}'.format(args.face))
-        show_faces_by_name(args, svm_clf, knn_clf)
+        tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+        faces = utils.FACES(tmp_faces, args.imgs_root)
+        show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels)
+        # show_all_faces(args, svm_clf, knn_clf)
 
   print('Done.')
 

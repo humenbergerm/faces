@@ -17,18 +17,6 @@ def detect_faces(args):
     # initialize counters
     total_faces = len(utils.get_images_in_dir_rec(args.input))
 
-    # dirs = utils.get_folders_in_dir_rec(args.input)
-    # # if there is no sub-folder, process input folder
-    # if len(dirs) == 0:
-    #   dirs.append(args.input)
-
-    # for d in dirs:
-    #   # check if folder contains images, if not -> skip
-    #   imgs = utils.get_images_in_dir(d)
-    #   if len(imgs) == 0:
-    #     continue
-    #   detect_faces_in_folder(args, faces, img_labels, imgs, total_faces)
-
     detect_faces_in_folder(args, faces, img_labels, utils.get_images_in_dir_rec(args.input), total_faces)
 
 def detect_faces_in_folder(args, faces, img_labels, files, total_faces):
@@ -82,7 +70,7 @@ def detect_faces_in_folder(args, faces, img_labels, files, total_faces):
         timeStamp = utils.get_timestamp(img_path)
         cls = 'detected'
         for l,d in zip(locs, descs):
-            face = utils.FACE(l, d, faces.get_name_id(cls), timeStamp, 0)
+            face = utils.FACE(l, d, cls, timeStamp, 0)
             face.path = img_path
             faces.add(face)
 

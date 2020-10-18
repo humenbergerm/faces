@@ -91,13 +91,12 @@ def train_detectors(args):
   faces = utils.FACES(tmp_faces, args.imgs_root)
 
   for p in faces.dict_by_name:
-    real_name = faces.get_real_name(p)
-    if real_name != 'unknown' and real_name != 'deleted' and real_name != 'detected' and real_name != 'DELETED':
+    if p != 'unknown' and p != 'deleted' and p != 'detected' and p != 'DELETED':
       for l in faces.dict_by_name[p]:
         confirmed = faces.get_confirmed(l)
         if not confirmed in [2]:
           X.append(faces.get_desc(l))
-          y.append(real_name)
+          y.append(p)
 
   if len(X) == 0:
     print('No faces found in database {}'.format(args.imgs_root))
