@@ -1432,7 +1432,7 @@ class FACE:
 
 
 class FACES:
-    def __init__(self, faces, names_path):
+    def __init__(self, faces):
         self.faces = []
         self.dict_by_name = {}
         self.dict_by_files = {}
@@ -1462,8 +1462,8 @@ class FACES:
             self.add_face_to_dicts(f, i)
 
     def add(self, face, do_not_add_to_changed=False):
-        img_path = os.path.splitext(face.path)[0] + os.path.splitext(face.path)[1].lower()
-        face.path = img_path
+        # img_path = os.path.splitext(face.path)[0] + os.path.splitext(face.path)[1].lower()
+        # face.path = img_path
         # check if face already exists
         if face.path in self.dict_by_files:
             for f in self.dict_by_files[face.path]:
@@ -1629,6 +1629,12 @@ class FACES:
 
         print('Stored faces to .pkl files.')
 
+    def store_all_to_img_labels(self):
+        for to_save in self.dict_by_files:
+            self.store_file_to_img_labels(to_save)
+
+        print('Stored all faces to .pkl files.')
+
     def remove_duplictes(self):
         for df in self.dict_by_files:
             for f1 in self.dict_by_files[df]:
@@ -1654,7 +1660,9 @@ class FACES:
 
     def load_from_single_file(self, path):
         with open(path, 'rb') as fid:
-            self.faces = pickle.load(fid)
+            faces = pickle.load(fid)
+        for f in faces:
+            self.add(f, do_not_add_to_changed=True)
 
 class IMG_LABELS:
     def __init__(self, timestamp):
@@ -1667,6 +1675,19 @@ class IMG_LABELS:
         return self.path + '.pkl'
 
 
+def getfile_sensitive(path):
+    directory, filename = os.path.split(path)
+    directory = (directory or '.')
+    ext = os.path.splitext(filename)[1]
+    for f in os.listdir(directory):
+        newpath = os.path.join(directory, f)
+        if os.path.isfile(newpath) and os.path.splitext(f)[0] == os.path.splitext(filename)[0] and os.path.splitext(f)[1].lower() == ext.lower():
+            if ext == os.path.splitext(f)[1]:
+                return path
+            else:
+                return os.path.splitext(newpath)[0] + os.path.splitext(f)[1]
+
+
 def load_img_labels(root_path):
     files = get_files_in_dir_by_ext_rec(root_path, '.pkl')
 
@@ -1675,8 +1696,10 @@ def load_img_labels(root_path):
     for f in files:
 
         # get corresponding image path
+        # print(f)
         img_path = os.path.splitext(f)[0]
-        img_path = os.path.splitext(img_path)[0] + os.path.splitext(img_path)[1].lower()
+        img_path = os.path.splitext(img_path)[0] + os.path.splitext(img_path)[1]
+        # img_path = getfile_sensitive(img_path)
 
         if not os.path.exists(img_path):
             print('{} does not exist'.format(img_path))

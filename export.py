@@ -261,9 +261,22 @@ def prepare_face_names(faces_list):
     return faces
 
 
+def getfile_sensitive(path):
+    directory, filename = os.path.split(path)
+    directory = (directory or '.')
+    ext = os.path.splitext(filename)[1]
+    for f in os.listdir(directory):
+        newpath = os.path.join(directory, f)
+        if os.path.isfile(newpath) and os.path.splitext(f)[0] == os.path.splitext(filename)[0] and os.path.splitext(f)[1].lower() == ext.lower():
+            if ext == os.path.splitext(f)[1]:
+                return path
+            else:
+                return os.path.splitext(newpath)[0] + os.path.splitext(f)[1]
+
+
 def export_to_csv(args):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     faces_csv_path = os.path.join(args.outdir, 'faces.csv')
     faces_input_csv_path = os.path.join(args.outdir, 'faces_exiftool.csv')
@@ -282,27 +295,36 @@ def export_to_csv(args):
             print('{}/{}'.format(e, len(faces.dict_by_files)))
             if os.path.dirname(f) != args.mask_folder and args.mask_folder != None:
                 continue
-            relpath = './' + os.path.relpath(f, args.imgs_root)
+            real_image_path = getfile_sensitive(f)
+            relpath = './' + os.path.relpath(real_image_path, args.imgs_root)
+            relpath_lower = os.path.splitext(relpath)[0] + os.path.splitext(relpath)[1].lower()
             row = [relpath]
             face_names = []
+            tmp_faces = []
             if len(faces.dict_by_files[f]) == 1:
                 face_name = prepare_face_name(faces.get_face(faces.dict_by_files[f][0]).name)
-                face_names.append(face_name)
+                tmp_faces.append(face_name)
+                if face_name not in ['f unknown', 'f deleted']:
+                    face_names.append(face_name)
             else:
                 str = ''
-                tmp_faces = []
                 for i in faces.dict_by_files[f]:
                     face_name = prepare_face_name(faces.get_face(i).name)
-                    if not face_name in tmp_faces:
+                    if not face_name in tmp_faces and face_name not in ['f unknown', 'f deleted']:
                         str += face_name + ','
                         tmp_faces.append(face_name)
-                face_names.append(str[:-1])
-            if files_faces_csv != None:
-                if files_faces_csv.get(relpath) != None:
-                    if files_faces_csv[relpath].replace(' ', '') == face_names[0].replace(' ', ''):
-                        continue
-            row += faces
-            filewriter.writerow(row)
+                if str != '':
+                    face_names.append(str[:-1])
+            if len(face_names) != 0:
+                if files_faces_csv != None:
+                    if relpath in files_faces_csv:
+                        if sorted(list(files_faces_csv[relpath].split(', '))) == sorted(tmp_faces):
+                            continue
+                    elif relpath_lower in files_faces_csv:
+                        if sorted(list(files_faces_csv[relpath_lower].split(', '))) == sorted(tmp_faces):
+                            continue
+                row += face_names
+                filewriter.writerow(row)
 
 
 def get_xmp_keywords(xmp):
@@ -360,7 +382,7 @@ def export_to_xmp(args):
 
 def export_to_xmp_files(args):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     if len(faces.dict_by_files) == 0:
         print('no faces loaded')

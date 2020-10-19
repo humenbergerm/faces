@@ -11,7 +11,7 @@ import utils
 
 def show_faces_in_folder(args, svm_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     files = faces.get_paths_from_folder(args.face)
 
@@ -130,7 +130,7 @@ def show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels):
 
 def show_all_faces(args, svm_clf, knn_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     for i,n in enumerate(faces.dict_by_name):
         args.face = n
@@ -138,7 +138,7 @@ def show_all_faces(args, svm_clf, knn_clf):
 
 def show_unconfirmed_faces(args, svm_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     unconfirmed = faces.get_unconfirmed(args.face)
 
@@ -383,8 +383,15 @@ def main():
       else:
         print('Showing detections of class {}'.format(args.face))
         tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-        faces = utils.FACES(tmp_faces, args.imgs_root)
+        faces = utils.FACES(tmp_faces)
+        # faces.store_to_single_file(
+        #  '/Users/mhumenbe/Library/Mobile Documents/com~apple~CloudDocs/Fotos/faces_single_file_lower.bin')
+        # faces = utils.FACES([])
+        # faces.load_from_single_file('/Users/mhumenbe/Library/Mobile Documents/com~apple~CloudDocs/Fotos/faces_single_file.bin')
+        # faces.store_all_to_img_labels()
+
         show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels)
+
         # show_all_faces(args, svm_clf, knn_clf)
 
   print('Done.')

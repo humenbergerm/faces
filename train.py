@@ -88,7 +88,7 @@ def train_detectors(args):
   y = []
 
   tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-  faces = utils.FACES(tmp_faces, args.imgs_root)
+  faces = utils.FACES(tmp_faces)
 
   for p in faces.dict_by_name:
     if p != 'unknown' and p != 'deleted' and p != 'detected' and p != 'DELETED':

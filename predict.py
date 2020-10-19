@@ -10,7 +10,7 @@ import utils
 
 def predict_faces(args, knn_clf, svm_clf):
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     if not args.cls in faces.dict_by_name:
         print('no faces found in this class')

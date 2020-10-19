@@ -12,7 +12,7 @@ processed_faces = 0
 def detect_faces(args):
 
     tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
-    faces = utils.FACES(tmp_faces, args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     # initialize counters
     total_faces = len(utils.get_images_in_dir_rec(args.input))
