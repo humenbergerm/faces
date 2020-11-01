@@ -291,6 +291,16 @@ def export_to_csv(args):
         header = ['SourceFile', 'Keywords']
         # header = ['SourceFile','Subject','XPKeywords','LastKeywordXMP','LastKeywordIPTC','UserComment']
         filewriter.writerow(header)
+
+        if files_faces_csv != None:
+            for f in files_faces_csv:
+                full_path = os.path.join(args.imgs_root, f[2:])
+                real_image_path = getfile_sensitive(full_path)
+                relpath = './' + os.path.relpath(real_image_path, args.imgs_root)
+                if os.path.splitext(relpath)[1].lower() in ['.jpg', '.png'] and full_path not in faces.dict_by_files:
+                    row = [relpath, '-']
+                    filewriter.writerow(row)
+
         for e, f in enumerate(faces.dict_by_files):
             print('{}/{}'.format(e, len(faces.dict_by_files)))
             if os.path.dirname(f) != args.mask_folder and args.mask_folder != None:
@@ -497,6 +507,32 @@ def export_new_format(args):
     # print('test')
 
 
+def export_face_imgs_only(args):
+    tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+    faces = utils.FACES(tmp_faces)
+
+    for im in faces.dict_by_files:
+        rel_path = os.path.relpath(im, args.imgs_root)
+        symlinkname = os.path.join(args.outdir, rel_path)
+        xmp_path = os.path.splitext(im)[0] + '.xmp'
+        xmp_path_link = os.path.splitext(symlinkname)[0] + '.xmp'
+
+        names = faces.get_names(faces.dict_by_files[im])
+        if names.count('unknown') + names.count('deleted') == len(names):
+            if os.path.exists(symlinkname):
+                os.remove(symlinkname)
+            if os.path.exists(xmp_path_link):
+                os.remove(xmp_path_link)
+        else:
+            dirname = os.path.dirname(symlinkname)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            if not os.path.islink(symlinkname):
+                os.symlink(im, symlinkname)
+            if not os.path.islink(xmp_path_link):
+                os.symlink(xmp_path, xmp_path_link)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--method', type=str, required=True,
@@ -507,7 +543,7 @@ def main():
                         help="Mask folder for faces. Only faces of images within this folder will be processed.")
     parser.add_argument('--imgs_root', type=str, required=True,
                         help="Root directory of your image library.")
-    parser.add_argument('--overwrite', help='Overwrite all keywords in EXIF data.', default=False,
+    parser.add_argument('--overwrite', help='Overwrite all exiting data.', default=False,
                         action='store_true')
     args = parser.parse_args()
 
@@ -552,6 +588,9 @@ def main():
     elif args.method == '7':
         print('Exporting to new format.')
         export_new_format(args)
+    elif args.method == '8':
+        print('Exporting only face images.')
+        export_face_imgs_only(args)
 
     print('Done.')
 

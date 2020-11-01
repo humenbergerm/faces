@@ -1565,6 +1565,14 @@ class FACES:
                     faces_indices.append(fi)
         return faces_indices
 
+    def filter_idxs_by_folder(self, idxs, folder):
+        filtered = []
+        for fi in idxs:
+            face = self.get_face(fi)
+            if os.path.dirname(face.path) == folder:
+                filtered.append(fi)
+        return filtered
+
     def get_paths_from_folder(self, folder):
         face_paths = []
         for fp in self.dict_by_folders[folder]:
