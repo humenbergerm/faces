@@ -242,23 +242,22 @@ def export_thumbnails_of_all_images_form_root(args):
         #   exit()
 
 
-def prepare_face_name(str):
-    face_prefix = 'f '
-    return face_prefix + str
+def prepare_name(str, prefix):
+    return prefix + str
 
 
-def prepare_face_names(faces_list):
-    faces = []
-    if len(faces_list) == 1:
-        face_name = prepare_face_name(faces_list[0])
-        faces.append(face_name)
+def prepare_names(names_list, prefix):
+    names = []
+    if len(names_list) == 1:
+        name = prepare_name(names_list[0], prefix)
+        names.append(name)
     else:
-        for i in faces_list:
-            face_name = prepare_face_name(i)
-            if not face_name in faces:
-                faces.append(face_name)
+        for i in names_list:
+            name = prepare_name(i, prefix)
+            if not name in names:
+                names.append(name)
 
-    return faces
+    return names
 
 
 def getfile_sensitive(path):
@@ -312,14 +311,14 @@ def export_to_csv(args):
             face_names = []
             tmp_faces = []
             if len(faces.dict_by_files[f]) == 1:
-                face_name = prepare_face_name(faces.get_face(faces.dict_by_files[f][0]).name)
+                face_name = prepare_name(faces.get_face(faces.dict_by_files[f][0]).name, 'f ')
                 tmp_faces.append(face_name)
                 if face_name not in ['f unknown', 'f deleted']:
                     face_names.append(face_name)
             else:
                 str = ''
                 for i in faces.dict_by_files[f]:
-                    face_name = prepare_face_name(faces.get_face(i).name)
+                    face_name = prepare_name(faces.get_face(i).name, 'f ')
                     if not face_name in tmp_faces and face_name not in ['f unknown', 'f deleted']:
                         str += face_name + ','
                         tmp_faces.append(face_name)
@@ -346,48 +345,67 @@ def get_xmp_keywords(xmp):
     return keywords
 
 
-def export_to_xmp(args):
-    preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
-    if len(preds_per_person) == 0:
-        print('no faces loaded')
-        exit()
-    files_faces = utils.get_faces_in_files(preds_per_person, ignore_unknown=True)
-
-    for f in files_faces:
-        if os.path.dirname(f) != args.mask_folder and args.mask_folder != None:
-            continue
-        xmp_path = os.path.splitext(f)[0] + '.xmp'
-        if os.path.exists(xmp_path):
-            with open(xmp_path, 'r') as fptr:
-                strbuffer = fptr.read()
-            xmp = XMPMeta()
-            xmp.parse_from_str(strbuffer)
+def get_keywords(xmp):
+    keywords = get_xmp_keywords(xmp)
+    faces = []
+    tags = []
+    categories = []
+    miscs = []
+    for k in keywords:
+        if k[0:2] == 'f ':
+            faces.append(k)
+        elif k[0:2] == 't ':
+            tags.append(k)
+        elif k[0:2] == 'c ':
+            categories.append(k)
         else:
-            xmpfile = XMPFiles(file_path=f, open_forupdate=True)
-            xmp = xmpfile.get_xmp()
+            miscs.append(k)
 
-        xmp_keywords = get_xmp_keywords(xmp)
+    return faces, tags, categories, miscs
 
-        faces = prepare_face_names(files_faces[f])
-        if not sorted(faces) == sorted(xmp_keywords):
-            xmp.delete_property(consts.XMP_NS_DC, 'subject')
-            xmp_keywords = get_xmp_keywords(xmp)
-            new_xmp_keywords = []
-            for face in faces:
-                if not face in xmp_keywords:
-                    new_xmp_keywords.append(face)
 
-            for face in new_xmp_keywords:
-                xmp.append_array_item(consts.XMP_NS_DC, 'subject', face,
-                                      {'prop_array_is_ordered': True, 'prop_value_is_array': True})
-
-            print('modifying existing file: {}'.format(os.path.basename(xmp_path)))
-            with open(xmp_path, 'w') as fptr:
-                fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
-        elif not os.path.exists(xmp_path):
-            print('creating new file: {}'.format(os.path.basename(xmp_path)))
-            with open(xmp_path, 'w') as fptr:
-                fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
+# def export_to_xmp(args):
+#     preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
+#     if len(preds_per_person) == 0:
+#         print('no faces loaded')
+#         exit()
+#     files_faces = utils.get_faces_in_files(preds_per_person, ignore_unknown=True)
+#
+#     for f in files_faces:
+#         if os.path.dirname(f) != args.mask_folder and args.mask_folder != None:
+#             continue
+#         xmp_path = os.path.splitext(f)[0] + '.xmp'
+#         if os.path.exists(xmp_path):
+#             with open(xmp_path, 'r') as fptr:
+#                 strbuffer = fptr.read()
+#             xmp = XMPMeta()
+#             xmp.parse_from_str(strbuffer)
+#         else:
+#             xmpfile = XMPFiles(file_path=f, open_forupdate=True)
+#             xmp = xmpfile.get_xmp()
+#
+#         xmp_keywords = get_xmp_keywords(xmp)
+#
+#         faces = prepare_face_names(files_faces[f])
+#         if not sorted(faces) == sorted(xmp_keywords):
+#             xmp.delete_property(consts.XMP_NS_DC, 'subject')
+#             xmp_keywords = get_xmp_keywords(xmp)
+#             new_xmp_keywords = []
+#             for face in faces:
+#                 if not face in xmp_keywords:
+#                     new_xmp_keywords.append(face)
+#
+#             for face in new_xmp_keywords:
+#                 xmp.append_array_item(consts.XMP_NS_DC, 'subject', face,
+#                                       {'prop_array_is_ordered': True, 'prop_value_is_array': True})
+#
+#             print('modifying existing file: {}'.format(os.path.basename(xmp_path)))
+#             with open(xmp_path, 'w') as fptr:
+#                 fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
+#         elif not os.path.exists(xmp_path):
+#             print('creating new file: {}'.format(os.path.basename(xmp_path)))
+#             with open(xmp_path, 'w') as fptr:
+#                 fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
 
 
 def export_to_xmp_files(args):
@@ -398,9 +416,9 @@ def export_to_xmp_files(args):
         print('no faces loaded')
         exit()
 
-    total_faces = utils.get_images_in_dir_rec(args.imgs_root)
+    total_images = utils.get_images_in_dir_rec(args.imgs_root)
 
-    for f in total_faces:
+    for f in total_images:
         if os.path.dirname(f) != args.mask_folder and args.mask_folder != None or f.lower().endswith('.png'):
             continue
         xmp_path = os.path.splitext(f)[0] + '.xmp'
@@ -415,34 +433,53 @@ def export_to_xmp_files(args):
             xmp = xmpfile.get_xmp()
 
         # print(f)
-        xmp_keywords = get_xmp_keywords(xmp)
+        kw_faces, kw_tags, kw_categories, kw_miscs = get_keywords(xmp)
 
         if f in faces.dict_by_files:
             names = faces.get_names(faces.dict_by_files[f])
             # remove detected, deleted and unknown
             unwanted_names = {'detected', 'deleted', 'unknown'}
             names = [ele for ele in names if ele not in unwanted_names]
-            face_names = prepare_face_names(names)
+            face_names = prepare_names(names, 'f ')
         else:
-            if not os.path.exists(xmp_path):
-                continue
+            # if not os.path.exists(xmp_path):
+            #     continue
             face_names = []
-        if not sorted(face_names) == sorted(xmp_keywords):
-            xmp.delete_property(consts.XMP_NS_DC, 'subject')
-            xmp_keywords = get_xmp_keywords(xmp)
-            new_xmp_keywords = []
-            for face in face_names:
-                if not face in xmp_keywords:
-                    new_xmp_keywords.append(face)
 
-            for face in new_xmp_keywords:
+        if f in img_labels:
+            if len(img_labels[f].tags) != 0:
+                tag_names = prepare_names([t[0] for t in img_labels[f].tags if t[1] >= 20], 't ')
+            else:
+                tag_names = []
+
+            if len(img_labels[f].categories) != 0:
+                categories_names = prepare_names([c[0] for c in img_labels[f].categories], 'c ')
+            else:
+                categories_names = []
+        else:
+            tag_names = []
+            categories_names = []
+
+        if sorted(face_names) != sorted(kw_faces) or sorted(tag_names) != sorted(kw_tags) or sorted(categories_names) != sorted(kw_categories) or len(kw_miscs) != 0:
+            xmp.delete_property(consts.XMP_NS_DC, 'subject')
+
+            for face in face_names:
                 xmp.append_array_item(consts.XMP_NS_DC, 'subject', face,
+                                      {'prop_array_is_ordered': True, 'prop_value_is_array': True})
+            for t in tag_names:
+                xmp.append_array_item(consts.XMP_NS_DC, 'subject', t,
+                                      {'prop_array_is_ordered': True, 'prop_value_is_array': True})
+            for c in categories_names:
+                xmp.append_array_item(consts.XMP_NS_DC, 'subject', c,
+                                      {'prop_array_is_ordered': True, 'prop_value_is_array': True})
+            for m in kw_miscs:
+                xmp.append_array_item(consts.XMP_NS_DC, 'subject', m,
                                       {'prop_array_is_ordered': True, 'prop_value_is_array': True})
 
             print('modifying existing file: {}'.format(os.path.basename(xmp_path)))
             with open(xmp_path, 'w') as fptr:
                 fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
-        elif not os.path.exists(xmp_path):
+        elif not os.path.exists(xmp_path) and (len(kw_faces) + len(kw_tags) + len(kw_categories) + len(kw_miscs)) != 0:
             print('creating new file: {}'.format(os.path.basename(xmp_path)))
             with open(xmp_path, 'w') as fptr:
                 fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))

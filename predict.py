@@ -65,7 +65,7 @@ def predict_faces(args, knn_clf, svm_clf):
                     if len(utils.clicked_idx) == 0:
                         utils.clicked_idx.append(fi)
                         utils.clicked_names = names
-                    utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path, knn_clf)
+                    utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, "")
                     utils.clicked_idx = []
                     utils.clicked_names = []
 
@@ -88,7 +88,7 @@ def predict_faces(args, knn_clf, svm_clf):
         i += 1
         files = faces.get_paths(faces.dict_by_name[args.cls])
 
-    faces.store_to_img_labels(args.imgs_root)
+    utils.store_to_img_labels(faces, img_labels)
 
 
 def main():

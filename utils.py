@@ -233,7 +233,7 @@ def train_knn(faces, outpath):
     X = []
     y = []
     for p in faces.dict_by_name:
-        real_name = faces.get_real_name(p)
+        real_name = p
         if real_name != 'unknown' and real_name != 'deleted' and real_name != 'detected' and real_name != 'DELETED':
           for l in faces.dict_by_name[p]:
             confirmed = faces.get_confirmed(l)
@@ -527,7 +527,7 @@ def resizeCV(img, w):
     return cv2.resize(img, (int(width), int(height)))
 
 
-def perform_key_action(args, key, faces, face_indices, names, img_path, knn_clf):
+def perform_key_action(args, key, faces, face_indices, names, img_path, knn_clf, knn_name):
     if key == 99:  # key 'c'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
@@ -583,6 +583,12 @@ def perform_key_action(args, key, faces, face_indices, names, img_path, knn_clf)
     elif key == 107:
         print('retraining knn')
         knn_clf = train_knn(faces, args.knn)
+    elif key == 108:
+        if len(face_indices) != 1:
+            print('Too many or zero faces selected.')
+            return False
+        faces.rename(face_indices[0], knn_name)
+        print('face renamed to knn response')
     elif key == 97:  # key 'a'
         faces_to_delete = faces.dict_by_files[img_path].copy()
         for fi in faces_to_delete:
@@ -1614,34 +1620,11 @@ class FACES:
                 unconfirmed.append(i)
         return unconfirmed
 
-    def store_file_to_img_labels(self, file, timestamp=''):
-        if timestamp == '':
-            face = self.get_face(self.dict_by_files[file][0])
-            timestamp = face.timestamp
-        img_labels = IMG_LABELS(timestamp)
-        if file in self.dict_by_files:
-            for f in self.dict_by_files[file]:
-                if self.get_face(f).name != 'DELETED':
-                    img_labels.faces.append(self.get_face(f))
-
-        print('Saving changes in {}'.format(file))
-        bin_path = file + '.pkl'
-        with open(bin_path, 'wb') as fid:
-            pickle.dump(img_labels, fid)
-
-    def store_to_img_labels(self, path):
-        for to_save in self.changed_files:
-            self.store_file_to_img_labels(to_save)
-
-        self.changed_files = []
-
-        print('Stored faces to .pkl files.')
-
-    def store_all_to_img_labels(self):
-        for to_save in self.dict_by_files:
-            self.store_file_to_img_labels(to_save)
-
-        print('Stored all faces to .pkl files.')
+    # def store_all_to_img_labels(self):
+    #     for to_save in self.dict_by_files:
+    #         self.store_file_to_img_labels(to_save)
+    #
+    #     print('Stored all faces to .pkl files.')
 
     def remove_duplictes(self):
         for df in self.dict_by_files:
@@ -1678,6 +1661,8 @@ class IMG_LABELS:
         self.path = ''
 
         self.faces = []
+        self.tags = []
+        self.categories = []
 
     def get_pkl_file_path(self):
         return self.path + '.pkl'
@@ -1725,4 +1710,34 @@ def load_img_labels(root_path):
             face.changed = False
             faces.append(face)
 
+        if not hasattr(img_labels[img_label.path], 'tags'):
+            img_labels[img_label.path].tags = []
+
+        if not hasattr(img_labels[img_label.path], 'categories'):
+            img_labels[img_label.path].categories = []
+
     return faces, img_labels
+
+def store_file_to_img_labels(faces, img_labels, file, timestamp=''):
+    if file in img_labels:
+        img_labels[file].faces = []
+    else:
+        if timestamp == '':
+            face = faces.get_face(faces.dict_by_files[file][0])
+            timestamp = face.timestamp
+        img_labels[file] = IMG_LABELS(timestamp)
+    if file in faces.dict_by_files:
+        img_labels[file].faces = [faces.get_face(f) for f in faces.dict_by_files[file] if faces.get_face(f).name != 'DELETED']
+
+    print('Saving changes in {}'.format(file))
+    bin_path = img_labels[file].get_pkl_file_path()
+    with open(bin_path, 'wb') as fid:
+        pickle.dump(img_labels[file], fid)
+
+def store_to_img_labels(faces, img_labels):
+    for to_save in faces.changed_files:
+        store_file_to_img_labels(faces, img_labels, to_save)
+
+    faces.changed_files = []
+
+    print('Stored faces to .pkl files.')
