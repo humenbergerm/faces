@@ -143,27 +143,25 @@ def save_to_exif(args):
 
 
 def export_face_crops(args):
-    preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
-    if len(preds_per_person) == 0:
-        print('no faces loaded')
-        exit()
+    tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
     sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
 
-    for p in preds_per_person:
-        if p == 'unknown' or p == 'deleted':
+    for name in faces.dict_by_name:
+        if name == 'unknown' or name == 'deleted':
             continue
-        face_dir = os.path.join(args.outdir, p)
+        face_dir = os.path.join(args.outdir, name)
         if not os.path.isdir(face_dir):
             utils.mkdir_p(face_dir)
-        print('Writing {}'.format(p))
-        for i, f in enumerate(preds_per_person[p]):
-            face_path = os.path.join(face_dir, '{}_{:06d}.jpg'.format(p, i))
+        print('Writing {}'.format(name))
+        for i, f in enumerate(faces.dict_by_name[name]):
+            face_path = os.path.join(face_dir, '{}_{:06d}.jpg'.format(name, i))
             if not os.path.isfile(face_path):
-                if 1:
-                    utils.save_face_crop(face_path, f[1], f[0][1])
+                if 0:
+                    utils.save_face_crop(face_path, faces.get_face_path(f), faces.get_loc(f))
                 else:
-                    utils.save_face_crop_aligned(sp, face_path, f[1], f[0][1])
+                    utils.save_face_crop_aligned(sp, face_path, faces.get_face_path(f), faces.get_loc(f))
 
 
 def export_thumbnails(args):
@@ -448,7 +446,7 @@ def export_to_xmp_files(args):
 
         if f in img_labels:
             if len(img_labels[f].tags) != 0:
-                tag_names = prepare_names([t[0] for t in img_labels[f].tags if t[1] >= 20], 't ')
+                tag_names = prepare_names([t[0] for t in img_labels[f].tags if t[1] >= 30], 't ')
             else:
                 tag_names = []
 

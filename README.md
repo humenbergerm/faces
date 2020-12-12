@@ -83,7 +83,7 @@ source venv_faces/bin/activate
 ```
 3. Install dependencies
 ```
-pip3 install dlib opencv-python Pillow sklearn
+pip3 install dlib opencv-python Pillow sklearn shapely piexif six python-xmp-toolkit requests
 ```
 [Exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/) if you want to use ```export.py``` for image metadata manopulation.
 
