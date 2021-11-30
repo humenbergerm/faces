@@ -6,6 +6,7 @@ import random
 import copy
 import cv2
 import subprocess
+import dlib
 
 import utils
 
@@ -38,7 +39,7 @@ def show_faces_in_folder(args, svm_clf, knn_clf):
         cv2.imshow("faces", opencvImage)
         cv2.setMouseCallback("faces", utils.click_face, (opencvImage_clean, faces, scale, img_labels[img_path], svm_clf))
         key = cv2.waitKey(0)
-        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, "")
+        utils.perform_key_action(args, key, faces, img_labels, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, "")
         utils.clicked_idx = []
 
         if key == 46 or key == 47:  # key '.' or key '/'
@@ -60,8 +61,11 @@ def show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels):
         # files = faces.get_paths(faces.filter_idxs_by_folder(faces.dict_by_name[args.face], args.mask_folder))
     else:
         idxs = sorted(faces.dict_by_name[args.face], key=lambda x: faces.get_face(x).timestamp, reverse=True)
+        # idxs = [x for x in idxs if faces.get_face(x).shape_dlib68 != None]
         # files = faces.get_paths(faces.dict_by_name[args.face])
     files = faces.get_paths(idxs)
+
+    # win = dlib.image_window()
 
     i = 0
     key = 0
@@ -79,10 +83,11 @@ def show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels):
         opencvImage = cv2.imread(img_path)
         height, width = opencvImage.shape[:2]
         scale = 600.0 / float(height)
+        # img = dlib.load_rgb_image(img_path)
         opencvImage = cv2.resize(opencvImage, (int(width * scale), int(height * scale)))
         opencvImage_clean = opencvImage.copy()
 
-        main_face = faces.get_face_idxs_by_name_and_file(args.face, img_path)
+        main_face = faces.get_face_idxs_by_name_and_file(args.face, img_path, idxs)
         if len(main_face) == 0:
             main_idx = -1
         else:
@@ -95,10 +100,19 @@ def show_faces_by_name(args, svm_clf, knn_clf, faces, img_labels):
             utils.show_face_crop(img_path, faces.get_face(main_idx).loc)
         cv2.imshow("faces", opencvImage)
         cv2.setMouseCallback("faces", utils.click_face, (opencvImage_clean, faces, scale, img_labels[img_path], svm_clf))
+
+        # if main_idx != -1:
+        #     win.clear_overlay()
+        #     win.set_image(img)
+        #     win.add_overlay(faces.get_face(main_idx).shape_dlib68)
+
         key = cv2.waitKey(0)
         if len(utils.clicked_idx) == 0 and main_idx != -1:
             utils.clicked_idx.append(main_idx)
-        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, name_knn)
+
+        # dlib.hit_enter_to_continue()
+
+        utils.perform_key_action(args, key, faces, img_labels, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, name_knn)
         utils.clicked_idx = []
 
         if args.face not in faces.dict_by_name:
@@ -181,7 +195,7 @@ def show_unconfirmed_faces(args, svm_clf, knn_clf):
         key = cv2.waitKey(0)
         if len(utils.clicked_idx) == 0 and main_idx != -1:
             utils.clicked_idx.append(main_idx)
-        utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, "")
+        utils.perform_key_action(args, key, faces, img_labels, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, "")
         utils.clicked_idx = []
 
         if key == 46 or key == 47:  # key '.' or key '/'

@@ -2,6 +2,7 @@ import fnmatch
 import os
 import sys
 import argparse
+import utils
 
 def main():
   parser = argparse.ArgumentParser()
@@ -25,7 +26,7 @@ def main():
   if len(matches) != 0:
     print('Recursive processing...')
     for i in matches:
-      process(i)
+      process_exif(i)
 
 def process(i):
   print('Processing images in directory: {}'.format(i))
@@ -35,6 +36,18 @@ def process(i):
   print('Renaming...')
   exifargs = "exiftool '-filename<" + foldername.replace(" ", "_") + "_${DateTimeOriginal}.%e' -d %Y-%m-%d-%H.%M.%S%%-c " + cur_dir
   os.system(exifargs)
+
+def process_exif(i):
+  files = utils.get_images_in_dir(i)
+  foldername = os.path.basename(i)
+
+  for f in files:
+    ext = os.path.splitext(os.path.basename(f))[1]
+    timestamp = utils.get_timestamp(f)
+    new_filename = foldername.replace(" ", "_") + '_' + str(timestamp).replace(' ', '-').replace(':', '.') + ext
+    new_filename = os.path.join(i, new_filename)
+    print(new_filename)
+    os.rename(f, new_filename)
 
 if __name__ == "__main__":
     main()

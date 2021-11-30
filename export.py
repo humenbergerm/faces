@@ -157,7 +157,7 @@ def export_face_crops(args):
         print('Writing {}'.format(name))
         for i, f in enumerate(faces.dict_by_name[name]):
             face_path = os.path.join(face_dir, '{}_{:06d}.jpg'.format(name, i))
-            if not os.path.isfile(face_path):
+            if not os.path.isfile(face_path) or args.overwrite:
                 if 0:
                     utils.save_face_crop(face_path, faces.get_face_path(f), faces.get_loc(f))
                 else:
@@ -349,6 +349,7 @@ def get_keywords(xmp):
     tags = []
     categories = []
     miscs = []
+    labels = []
     for k in keywords:
         if k[0:2] == 'f ':
             faces.append(k)
@@ -356,10 +357,12 @@ def get_keywords(xmp):
             tags.append(k)
         elif k[0:2] == 'c ':
             categories.append(k)
+        elif k[0:2] == 'l ':
+            labels.append(k)
         else:
             miscs.append(k)
 
-    return faces, tags, categories, miscs
+    return faces, tags, categories, labels, miscs
 
 
 # def export_to_xmp(args):
@@ -417,7 +420,9 @@ def export_to_xmp_files(args):
     total_images = utils.get_images_in_dir_rec(args.imgs_root)
 
     for f in total_images:
-        if os.path.dirname(f) != args.mask_folder and args.mask_folder != None or f.lower().endswith('.png'):
+        img_path = os.path.splitext(f)[0] + os.path.splitext(f)[1].lower()
+
+        if os.path.dirname(img_path) != args.mask_folder and args.mask_folder != None or img_path.lower().endswith('.png'):
             continue
         xmp_path = os.path.splitext(f)[0] + '.xmp'
 
@@ -431,10 +436,13 @@ def export_to_xmp_files(args):
             xmp = xmpfile.get_xmp()
 
         # print(f)
-        kw_faces, kw_tags, kw_categories, kw_miscs = get_keywords(xmp)
+        kw_faces, kw_tags, kw_categories, kw_labels, kw_miscs = get_keywords(xmp)
+        kw_tags = []
+        kw_categories = []
+        kw_miscs = []
 
-        if f in faces.dict_by_files:
-            names = faces.get_names(faces.dict_by_files[f])
+        if img_path in faces.dict_by_files:
+            names = faces.get_names(faces.dict_by_files[img_path])
             # remove detected, deleted and unknown
             unwanted_names = {'detected', 'deleted', 'unknown'}
             names = [ele for ele in names if ele not in unwanted_names]
@@ -444,43 +452,44 @@ def export_to_xmp_files(args):
             #     continue
             face_names = []
 
-        if f in img_labels:
-            if len(img_labels[f].tags) != 0:
-                tag_names = prepare_names([t[0] for t in img_labels[f].tags if t[1] >= 30], 't ')
-            else:
-                tag_names = []
+        labels = []
+        if img_path in img_labels:
+            if len(img_labels[img_path].tags) != 0:
+                labels += prepare_names([t[0].lower() for t in img_labels[img_path].tags if t[1] >= 30], 'l ')
 
-            if len(img_labels[f].categories) != 0:
-                categories_names = prepare_names([c[0] for c in img_labels[f].categories], 'c ')
-            else:
-                categories_names = []
-        else:
-            tag_names = []
-            categories_names = []
+            if len(img_labels[img_path].categories) != 0:
+                labels += prepare_names([c[0].lower() for c in img_labels[img_path].categories], 'l ')
 
-        if sorted(face_names) != sorted(kw_faces) or sorted(tag_names) != sorted(kw_tags) or sorted(categories_names) != sorted(kw_categories) or len(kw_miscs) != 0:
+            if hasattr(img_labels[img_path], 'gcloud_labels'):
+                labels += prepare_names([l.lower() for l in img_labels[img_path].gcloud_labels], 'l ')
+            if hasattr(img_labels[img_path], 'gcloud_objects'):
+                labels += prepare_names([l.lower() for l in img_labels[img_path].gcloud_objects], 'l ')
+            if hasattr(img_labels[img_path], 'gcloud_web'):
+                labels += prepare_names([l.lower() for l in img_labels[img_path].gcloud_web], 'l ')
+
+            if hasattr(img_labels[img_path], 'gcloud_landmarks'):
+                labels += prepare_names([l.lower() for l in img_labels[img_path].gcloud_landmarks[::2]], 'l ')
+
+            labels = list(set(labels))
+
+        if sorted(face_names) != sorted(kw_faces) or sorted(labels) != sorted(kw_labels) or not os.path.exists(xmp_path):
             xmp.delete_property(consts.XMP_NS_DC, 'subject')
 
             for face in face_names:
                 xmp.append_array_item(consts.XMP_NS_DC, 'subject', face,
                                       {'prop_array_is_ordered': True, 'prop_value_is_array': True})
-            for t in tag_names:
-                xmp.append_array_item(consts.XMP_NS_DC, 'subject', t,
-                                      {'prop_array_is_ordered': True, 'prop_value_is_array': True})
-            for c in categories_names:
-                xmp.append_array_item(consts.XMP_NS_DC, 'subject', c,
-                                      {'prop_array_is_ordered': True, 'prop_value_is_array': True})
-            for m in kw_miscs:
-                xmp.append_array_item(consts.XMP_NS_DC, 'subject', m,
+
+            for l in labels:
+                xmp.append_array_item(consts.XMP_NS_DC, 'subject', l,
                                       {'prop_array_is_ordered': True, 'prop_value_is_array': True})
 
-            print('modifying existing file: {}'.format(os.path.basename(xmp_path)))
+            print('exporting file: {}'.format(os.path.basename(xmp_path)))
             with open(xmp_path, 'w') as fptr:
                 fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
-        elif not os.path.exists(xmp_path) and (len(kw_faces) + len(kw_tags) + len(kw_categories) + len(kw_miscs)) != 0:
-            print('creating new file: {}'.format(os.path.basename(xmp_path)))
-            with open(xmp_path, 'w') as fptr:
-                fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
+        # elif not os.path.exists(xmp_path):
+        #     print('creating new file: {}'.format(os.path.basename(xmp_path)))
+            # with open(xmp_path, 'w') as fptr:
+            #     fptr.write(xmp.serialize_to_str(omit_packet_wrapper=True))
 
 def export_new_format(args):
     # faces = utils.load_img_labels(args.imgs_root)
@@ -553,7 +562,7 @@ def export_face_imgs_only(args):
         xmp_path_link = os.path.splitext(symlinkname)[0] + '.xmp'
 
         names = faces.get_names(faces.dict_by_files[im])
-        if names.count('unknown') + names.count('deleted') == len(names):
+        if names.count('unknown') + names.count('deleted') + names.count('detected') == len(names):
             if os.path.exists(symlinkname):
                 os.remove(symlinkname)
             if os.path.exists(xmp_path_link):

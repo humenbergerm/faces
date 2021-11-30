@@ -30,6 +30,7 @@ def detect_faces_in_folder(args, faces, img_labels, files, total_faces):
     # dlib face detector
     detector = dlib.get_frontal_face_detector()
     sp = dlib.shape_predictor("models/shape_predictor_5_face_landmarks.dat")
+    sp_68 = dlib.shape_predictor("models/shape_predictor_68_face_landmarks.dat")
     facerec = dlib.face_recognition_model_v1("models/dlib_face_recognition_resnet_model_v1.dat")
 
     # MTCNN
@@ -72,9 +73,15 @@ def detect_faces_in_folder(args, faces, img_labels, files, total_faces):
         for l,d in zip(locs, descs):
             face = utils.FACE(l, d, cls, timeStamp, 0)
             face.path = img_path
+            # face = utils.compute_face_desc_68(facerec, sp_68, face)
             faces.add(face)
 
-        faces.store_file_to_img_labels(img_path, timeStamp)
+        if not img_path in img_labels:
+            img_label = utils.IMG_LABELS(timeStamp)
+            img_label.path = img_path
+            img_labels[img_path] = img_label
+
+        utils.store_file_to_img_labels(faces, img_labels, img_path)
 
 def main():
     parser = argparse.ArgumentParser()

@@ -33,16 +33,17 @@ def predict_faces(args, knn_clf, svm_clf):
         opencvImage = cv2.resize(opencvImage, (int(width * scale), int(height * scale)))
         opencvImage_clean = opencvImage.copy()
 
-        face_idxs = faces.get_face_idxs_by_name_and_file(args.cls, img_path)
+        idxs = sorted(faces.dict_by_name[args.cls], key=lambda x: faces.get_face(x).timestamp, reverse=True)
+        face_idxs = faces.get_face_idxs_by_name_and_file(args.cls, img_path, idxs)
         for fi in face_idxs:
             opencvImage = opencvImage_clean.copy()
             face = faces.get_face(fi)
             name = face.name
             names, probs = utils.predict_face_svm(face.desc, svm_clf, print_top=True)
             if name == "unknown" or name == "detected" and name != 'deleted' and name != 'DELETED':
-                if probs[0] >= 0.95:
+                if probs[0] >= 0.85:
                     name = names[0]
-                    print('{} > 0.95'.format(name))
+                    print('{} has high probability'.format(name))
                 else:
                     name_knn = utils.predict_knn(knn_clf, face.desc, n=7, thresh=0.3)
                     if name_knn != 'unknown':
@@ -50,7 +51,7 @@ def predict_faces(args, knn_clf, svm_clf):
                         print('{} has majority in knn search'.format(name))
                     else:
                         name = 'unknown'
-                        # faces.rename(fi, name)
+                        faces.rename(fi, name)
 
             if name != args.cls and name != 'unknown' and name != 'deleted' and name != 'DELETED':
                 if args.confirm:
@@ -65,7 +66,7 @@ def predict_faces(args, knn_clf, svm_clf):
                     if len(utils.clicked_idx) == 0:
                         utils.clicked_idx.append(fi)
                         utils.clicked_names = names
-                    utils.perform_key_action(args, key, faces, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, "")
+                    utils.perform_key_action(args, key, faces, img_labels, utils.clicked_idx, utils.clicked_names, img_path, knn_clf, "")
                     utils.clicked_idx = []
                     utils.clicked_names = []
 
@@ -86,7 +87,7 @@ def predict_faces(args, knn_clf, svm_clf):
                     else:
                         faces.set_confirmed(fi, 2)
         i += 1
-        files = faces.get_paths(faces.dict_by_name[args.cls])
+        # files = faces.get_paths(faces.dict_by_name[args.cls])
 
     utils.store_to_img_labels(faces, img_labels)
 

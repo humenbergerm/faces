@@ -374,6 +374,20 @@ def is_valid_roi(x, y, w, h, img_shape):
         return True
     return False
 
+def make_valid_roi(x, y, w, h, img_shape):
+    x1 = x + w
+    y1 = y + h
+    x = max(x, 0)
+    x = min(x, img_shape[1]-1)
+    y = max(y, 0)
+    y = min(y, img_shape[0])
+    x1 = max(x1, 0)
+    x1 = min(x1, img_shape[1] - 1)
+    y1 = max(y1, 0)
+    y1 = min(y1, img_shape[0])
+
+    return x, y, x1-x, y1-y
+
 
 def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=False, dets=[]):
     img = dlib.load_rgb_image(img_path)
@@ -406,6 +420,15 @@ def detect_faces_in_image(img_path, detector, facerec, sp, use_entire_image=Fals
         locations.append((d.top(), d.right(), d.bottom(), d.left()))
 
     return locations, descriptors, img.shape
+
+
+def compute_face_desc_68(facerec, sp, face):
+    img = dlib.load_rgb_image(face.path)
+    d = dlib.rectangle(face.loc[3], face.loc[0], face.loc[1], face.loc[2])
+    face.shape_dlib68 = sp(img, d)
+    face.desc_dlib68 = facerec.compute_face_descriptor(img, face.shape_dlib68)
+
+    return face
 
 
 def detect_faces_in_image_cv2(img_path, net, facerec, sp, detector):
@@ -527,7 +550,7 @@ def resizeCV(img, w):
     return cv2.resize(img, (int(width), int(height)))
 
 
-def perform_key_action(args, key, faces, face_indices, names, img_path, knn_clf, knn_name):
+def perform_key_action(args, key, faces, img_labels, face_indices, names, img_path, knn_clf, knn_name):
     if key == 99:  # key 'c'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
@@ -580,10 +603,10 @@ def perform_key_action(args, key, faces, face_indices, names, img_path, knn_clf,
             print("face deleted forever")
     elif key == 116:  # key 't'
         subprocess.call(["open", "-R", img_path])
-    elif key == 107:
+    elif key == 107: # key 'k'
         print('retraining knn')
         knn_clf = train_knn(faces, args.knn)
-    elif key == 108:
+    elif key == 108: # key 'l'
         if len(face_indices) != 1:
             print('Too many or zero faces selected.')
             return False
@@ -596,6 +619,7 @@ def perform_key_action(args, key, faces, face_indices, names, img_path, knn_clf,
         print('all faces in {} deleted forever'.format(img_path))
     elif key == 115:  # key 's'
         # export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
+        store_to_img_labels(faces, img_labels)
         print('saved')
     elif key == 122:  # key 'z'
         print('z pressed')
@@ -1211,8 +1235,17 @@ def show_face_crop(img_path, loc):
 
 def save_face_crop_aligned(sp, face_path, img_path, loc):
     img = cv2.imread(img_path)
-    # loc = (d.top(), d.right(), d.bottom(), d.left())
-    d = dlib.rectangle(loc[3], loc[0], loc[1], loc[2])
+
+    margin = 0
+    x = loc[3] - margin
+    y = loc[0] - margin
+    w = loc[1] + margin - x
+    h = loc[2] + margin - y
+
+    x,y,w,h = make_valid_roi(x, y, w, h, img.shape)
+
+    # left: int, top: int, right: int, bottom: int
+    d = dlib.rectangle(x, y, x+w, y+h)
     shape = sp(img, d)
 
     aligned_face = dlib.get_face_chip(img, shape)
@@ -1332,7 +1365,7 @@ def merge_detections(locs1, descs1, locs2, descs2, return_diff=False):
 def get_timestamp(f):
     timeStamp = datetime.now()
     no_timestamp = True
-    if f.lower().endswith(('.jpg')):
+    if f.lower().endswith(('.jpg', '.jpeg')):
         pil_image = Image.open(f)
         exif = pil_image._getexif()
         if exif != None:
@@ -1431,6 +1464,8 @@ class FACE:
     def __init__(self, loc, desc, name, timestamp, confirmed):
         self.loc = loc
         self.desc = desc
+        # self.shape_dlib68 = None
+        # self.desc_dlib68 = None
         self.name = name
         self.path = ''
         self.timestamp = timestamp
@@ -1484,18 +1519,18 @@ class FACES:
                 self.changed_files.append(face.path)
 
     def add_face_to_dicts(self, face, idx):
-        if not face.path in self.dict_by_files:
+        if face.path not in self.dict_by_files:
             self.dict_by_files[face.path] = []
         self.dict_by_files[face.path].append(idx)
 
-        if not face.name in self.dict_by_name:
+        if face.name not in self.dict_by_name:
             self.dict_by_name[face.name] = []
         self.dict_by_name[face.name].append(idx)
 
         folder = os.path.dirname(face.path)
-        if not folder in self.dict_by_folders:
+        if folder not in self.dict_by_folders:
             self.dict_by_folders[folder] = {}
-        if not face.path in self.dict_by_folders[folder]:
+        if face.path not in self.dict_by_folders[folder]:
             self.dict_by_folders[folder][face.path] = []
         self.dict_by_folders[folder][face.path].append(idx)
 
@@ -1563,11 +1598,11 @@ class FACES:
                 face_paths.append(path)
         return face_paths
 
-    def get_face_idxs_by_name_and_file(self, name, path):
+    def get_face_idxs_by_name_and_file(self, name, path, idxs):
         faces_indices = []
         for fi in self.dict_by_name[name]:
             if self.faces[fi].path == path:
-                if not fi in faces_indices:
+                if not fi in faces_indices and fi in idxs:
                     faces_indices.append(fi)
         return faces_indices
 
@@ -1664,6 +1699,11 @@ class IMG_LABELS:
         self.tags = []
         self.categories = []
 
+        self.gcloud_labels = []
+        self.gcloud_objects = []
+        self.gcloud_landmarks = []
+        self.gcloud_web = []
+
     def get_pkl_file_path(self):
         return self.path + '.pkl'
 
@@ -1691,7 +1731,7 @@ def load_img_labels(root_path):
         # get corresponding image path
         # print(f)
         img_path = os.path.splitext(f)[0]
-        img_path = os.path.splitext(img_path)[0] + os.path.splitext(img_path)[1]
+        img_path = os.path.splitext(img_path)[0] + os.path.splitext(img_path)[1].lower()
         # img_path = getfile_sensitive(img_path)
 
         if not os.path.exists(img_path):

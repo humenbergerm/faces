@@ -5,35 +5,59 @@ import argparse
 import dlib
 import cv2
 from shapely.geometry import Polygon
+import numpy as np
 
 import utils
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--db', type=str, required=True,
-                        help="Path to folder with predicted faces (.csv files).")
+    parser.add_argument('--imgs_root', type=str, required=True,
+                        help="Path to images folder.")
     args = parser.parse_args()
 
-    preds_per_person = utils.load_faces_from_csv(args.db, args.imgs_root)
-    faces_files = utils.get_faces_in_files(preds_per_person)
+    # dlib face detector
+    detector = dlib.get_frontal_face_detector()
+    sp = dlib.shape_predictor("models/shape_predictor_68_face_landmarks.dat")
+    facerec = dlib.face_recognition_model_v1("models/dlib_face_recognition_resnet_model_v1.dat")
 
-    to_delete = []
-    for n,p in enumerate(preds_per_person['deleted']):
-      for f in faces_files[p[1]]:
-        cls, i = f
-        if cls != 'deleted':
-          if p[0][1] == preds_per_person[cls][i][0][1]:
-            print(cls)
-            to_delete.append(n)
+    # win = dlib.image_window()
 
-    to_delete = sorted(to_delete)
-    to_delete.reverse()
-    for i in to_delete:
-      print(i)
-      if len(preds_per_person['deleted'])-1 >= i:
-        preds_per_person['deleted'].pop(i)  # if not, they would exist double, in 'deleted' and in the cluster group
+    tmp_faces, img_labels = utils.load_img_labels(args.imgs_root)
+    faces = utils.FACES(tmp_faces)
 
-    utils.export_persons_to_csv(preds_per_person, args.imgs_root, args.db)
+    for im in faces.dict_by_files:
+        for fi in faces.dict_by_files[im]:
+            face = faces.get_face(fi)
+
+            # if hasattr(face, 'shape_dlib68') and hasattr(face, 'desc_dlib68'):
+            #     continue
+
+            img = dlib.load_rgb_image(face.path)
+
+            # locations: list of tuples (t,r,b,l)
+            # dlib rect: left: int, top: int, right: int, bottom: int
+            d = dlib.chip_details(dlib.rectangle(face.loc[3], face.loc[0], face.loc[1], face.loc[2]))
+            roi = dlib.extract_image_chip(np.array(img), d)
+
+            # idx tells which sub-detector was used, see https://github.com/davisking/dlib/blob/master/dlib/image_processing/frontal_face_detector.h
+            dets, scores, idx = detector.run(roi, 1, 0.3)
+            print(scores, idx)
+            if len(dets) == 0:
+                face.shape_dlib68 = None
+                face.desc_dlib68 = None
+            else:
+                shape = dlib.rectangle(dets[0].left()+face.loc[3], dets[0].top()+face.loc[0], dets[0].right()+face.loc[3], dets[0].bottom()+face.loc[0])
+                face.shape_dlib68 = sp(img, shape)
+                face.desc_dlib68 = np.array(facerec.compute_face_descriptor(img, face.shape_dlib68))
+                # win.clear_overlay()
+                # win.set_image(img)
+                # win.add_overlay(face.shape_dlib68)
+                # dlib.hit_enter_to_continue()
+
+            if not face.path in faces.changed_files:
+                faces.changed_files.append(face.path)
+        utils.store_to_img_labels(faces, img_labels)
+
 
 if __name__ == "__main__":
     main()

@@ -91,10 +91,10 @@ def train_detectors(args):
   faces = utils.FACES(tmp_faces)
 
   for p in faces.dict_by_name:
-    if p != 'unknown' and p != 'deleted' and p != 'detected' and p != 'DELETED':
+    if p not in ['unknown', 'deleted', 'detected', 'DELETED']:
       for l in faces.dict_by_name[p]:
         confirmed = faces.get_confirmed(l)
-        if not confirmed in [2]:
+        if confirmed not in [2]:
           X.append(faces.get_desc(l))
           y.append(p)
 
