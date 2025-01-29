@@ -4,6 +4,7 @@
 Face detection and recognition software to organize your personal photo gallery.
 
 DRAFT: work in progress, testing in progress, documentation in progress
+UPDATE January 2025: If not obvious, I stopped working on it a while ago. If somebody is interested in this work or is working on similar ideas and needs help with it, please let me know.
 
 ## Introduction
 
